@@ -76,7 +76,7 @@ export function TopBar({ title }: { title: string }) {
         </div>
 
         <Popover>
-          <PopoverTrigger asChild>
+          <PopoverTrigger>
             <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 transition-colors">
               <Bell size={20} className={unreadCount > 0 ? "text-primary animate-pulse" : ""} />
               {unreadCount > 0 && (
