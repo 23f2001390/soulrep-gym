@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthSession } from '@/lib/auth-session'
 import { prisma } from '@/lib/prisma'
-import { sendEmail } from '@/lib/mail'
 
 /**
  * GET /api/owner/members
