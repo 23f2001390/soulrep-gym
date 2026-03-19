@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { QrCode, CheckCircle2, Scan, Clock, XCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function MemberAttendancePage() {
   const { user, loading: authLoading } = useAuth();
@@ -35,47 +35,70 @@ export default function MemberAttendancePage() {
   }, [authLoading, user]);
 
   useEffect(() => {
-    let scanner: any = null;
-    if (scanning) {
-      scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
-      );
+    let html5QrCode: Html5Qrcode | null = null;
 
-      scanner.render(async (decodedText: string) => {
-        setScanning(false);
-        scanner.clear();
-        try {
-          const res = await fetch("/api/member/attendance", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: decodedText }),
-          });
+    if (scanning && !authLoading) {
+      // Small delay to ensure the DOM element is rendered
+      const timer = setTimeout(() => {
+        const element = document.getElementById("qr-reader");
+        if (!element) return;
 
-          if (res.ok) {
-            setStatus("success");
-            fetchAttendance();
-          } else {
-            const err = await res.json();
-            setStatus("error");
-            setErrorMsg(err.error || "Verification failed");
+        html5QrCode = new Html5Qrcode("qr-reader");
+        
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        };
+
+        html5QrCode.start(
+          { facingMode: "environment" }, 
+          config, 
+          async (decodedText: string) => {
+            setScanning(false);
+            if (html5QrCode) {
+              await html5QrCode.stop().catch(console.error);
+            }
+            
+            try {
+              const res = await fetch("/api/member/attendance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: decodedText }),
+              });
+
+              if (res.ok) {
+                setStatus("success");
+                fetchAttendance();
+              } else {
+                const err = await res.json();
+                setStatus("error");
+                setErrorMsg(err.error || "Verification failed");
+              }
+            } catch (err) {
+              setStatus("error");
+              setErrorMsg("Network error during check-in");
+            }
+          },
+          (errorMessage: string) => {
+            // Scanning, no action needed for common errors
           }
-        } catch (err) {
+        ).catch((err) => {
+          console.error("Failed to start scanner:", err);
+          setScanning(false);
           setStatus("error");
-          setErrorMsg("Network error during check-in");
-        }
-      }, (error: any) => {
-        // Just noise, ignore
-      });
-    }
+          setErrorMsg("Could not access camera. Ensure you are on HTTPS or localhost.");
+        });
+      }, 300);
 
-    return () => {
-      if (scanner) {
-        scanner.clear().catch(console.error);
-      }
-    };
-  }, [scanning]);
+      return () => {
+        clearTimeout(timer);
+        if (html5QrCode && html5QrCode.isScanning) {
+          html5QrCode.stop().catch(console.error);
+        }
+      };
+    }
+  }, [scanning, authLoading]);
 
   if (authLoading) {
     return (
@@ -121,7 +144,7 @@ export default function MemberAttendancePage() {
                 </div>
               ) : scanning ? (
                 <div className="w-full flex flex-col items-center">
-                  <div id="qr-reader" className="w-full max-w-[400px] border-4 border-primary rounded-none mb-6 overflow-hidden" />
+                  <div id="qr-reader" className="w-full max-w-[400px] min-h-[300px] border-4 border-primary rounded-none mb-6 overflow-hidden bg-black flex items-center justify-center" />
                   <p className="flex items-center gap-2 text-primary font-black animate-pulse text-xs uppercase tracking-widest">
                     <Scan size={14} /> Center QR Code in Frame
                   </p>
