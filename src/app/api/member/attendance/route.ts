@@ -60,10 +60,9 @@ export async function POST(req: NextRequest) {
       const newRecord = await tx.attendanceRecord.create({
         data: {
           memberId,
-          memberName: session.user.name || 'Member',
           date: today,
           checkIn: now,
-          method: 'qr'
+          method: 'QR'
         }
       })
 
