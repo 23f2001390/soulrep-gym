@@ -147,7 +147,7 @@ export default function MemberDashboard() {
                 )}>
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
-                      {trainer.name.split(" ").map(n => n[0]).join("")}
+                      {trainer.name.split(" ").map((n: string) => n[0]).join("")}
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">{trainer.name}</p>
