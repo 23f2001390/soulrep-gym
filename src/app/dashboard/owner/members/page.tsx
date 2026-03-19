@@ -284,7 +284,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <Label>New Plan</Label>
-                            <Select onValueChange={setNewPlan} value={newPlan || member.plan}>
+                            <Select onValueChange={v => setNewPlan(v ?? "")} value={newPlan || member.plan}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="MONTHLY">Monthly — ₹1,800</SelectItem>
@@ -315,7 +315,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <Label>Extend By</Label>
-                            <Select onValueChange={setExtendDays} value={extendDays}>
+                            <Select onValueChange={v => setExtendDays(v ?? "30")} value={extendDays}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="7">7 Days</SelectItem>
@@ -351,7 +351,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <Label>New Trainer</Label>
-                            <Select onValueChange={setNewTrainerId} value={newTrainerId || member.trainerId}>
+                            <Select onValueChange={v => setNewTrainerId(v ?? "")} value={newTrainerId || member.trainerId}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 {trainers.map(t => (
