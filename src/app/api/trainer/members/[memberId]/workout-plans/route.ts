@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma'
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { memberId: string } }
+  { params }: { params: Promise<{ memberId: string }> }
 ) {
   const session = await getAuthSession()
   if (!session || !session.user) {
@@ -22,7 +22,7 @@ export async function GET(
   if (role !== 'TRAINER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  const memberId = params.memberId
+  const { memberId } = await params
   try {
     // Verify that the member belongs to this trainer
     const member = await prisma.member.findUnique({

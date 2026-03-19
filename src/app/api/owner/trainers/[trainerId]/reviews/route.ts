@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma'
  * Returns all reviews for the specified trainer. Only accessible by
  * the owner. The reviews are sorted by date descending.
  */
-export async function GET(req: NextRequest, { params }: { params: { trainerId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ trainerId: string }> }) {
   const session = await getAuthSession()
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { trainerId: s
   if (role !== 'OWNER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  const { trainerId } = params
+  const { trainerId } = await params
   try {
     const reviews = await prisma.review.findMany({
       where: { trainerId },
