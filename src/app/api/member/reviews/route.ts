@@ -92,8 +92,12 @@ export async function POST(req: NextRequest) {
           rating,
           feedback: feedback || '',
           date: new Date()
+        },
+        include: {
+          member: { include: { user: { select: { name: true } } } }
         }
       })
+
       // Update trainer rating and reviewCount
       const trainer = await tx.trainer.findUnique({ where: { id: trainerId } })
       if (trainer) {
@@ -101,12 +105,19 @@ export async function POST(req: NextRequest) {
         const newRating = ((trainer.rating * trainer.reviewCount) + rating) / newCount
         await tx.trainer.update({
           where: { id: trainerId },
-          data: {
-            rating: newRating,
-            reviewCount: newCount
-          }
+          data: { rating: newRating, reviewCount: newCount }
         })
       }
+
+      // Create notification for the trainer
+      await tx.notification.create({
+        data: {
+          userId: trainerId,
+          title: "New Review Received",
+          message: `${review.member?.user?.name || 'A member'} left you a ${rating}-star review.`,
+        }
+      })
+
       return review
     })
     return NextResponse.json(result, { status: 201 })

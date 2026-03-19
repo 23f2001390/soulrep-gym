@@ -94,25 +94,40 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json({ error: 'Slot already booked' }, { status: 409 })
     }
-    const booking = await prisma.booking.create({
-      data: {
-        memberId,
-        trainerId,
-        date: bookingDate,
-        time,
-        status: 'PENDING'
-      },
-      include: {
-        trainer: { include: { user: { select: { name: true } } } }
-      }
+    const result = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.create({
+        data: {
+          memberId,
+          trainerId,
+          date: bookingDate,
+          time,
+          status: 'PENDING'
+        },
+        include: {
+          trainer: { include: { user: { select: { name: true } } } },
+          member: { include: { user: { select: { name: true } } } }
+        }
+      })
+
+      // Create notification for the trainer
+      await tx.notification.create({
+        data: {
+          userId: trainerId,
+          title: "New Session Booking",
+          message: `${booking.member.user.name} has requested a session on ${date} at ${time}.`,
+        }
+      })
+
+      return booking
     })
+
     return NextResponse.json({
-      id: booking.id,
-      trainerId: booking.trainerId,
-      trainerName: booking.trainer.user?.name,
-      date: booking.date,
-      time: booking.time,
-      status: booking.status
+      id: result.id,
+      trainerId: result.trainerId,
+      trainerName: result.trainer.user?.name,
+      date: result.date,
+      time: result.time,
+      status: result.status
     }, { status: 201 })
   } catch (err) {
     console.error(err)

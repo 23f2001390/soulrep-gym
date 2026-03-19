@@ -13,8 +13,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const userId = (session.user as any).id
+    console.log(`Fetching notifications for userId: ${userId}`)
     const notifications = await prisma.notification.findMany({
-      where: { userId: (session.user as any).id },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 20
     })

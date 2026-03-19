@@ -29,43 +29,59 @@ export async function POST(request: Request) {
     const hashed = await hashPassword(password)
 
     // Create the user and associated member record in a single transaction
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashed,
-        role: 'MEMBER',
-        name: `${firstName} ${lastName}`,
-        phone,
-        Member: {
-          create: {
-            joinDate: new Date(),
-            plan: 'MONTHLY',
-            // Set plan expiry to 1 month from now
-            planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            planStatus: 'ACTIVE',
-            // In a real app these would be set via business logic or input
-            attendanceCount: 0,
-            sessionsRemaining: 30,
-            age: 18,
-            gender: 'OTHER'
+    const result = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          password: hashed,
+          role: 'MEMBER',
+          name: `${firstName} ${lastName}`,
+          phone,
+          Member: {
+            create: {
+              joinDate: new Date(),
+              plan: 'MONTHLY',
+              // Set plan expiry to 1 month from now
+              planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              planStatus: 'ACTIVE',
+              // In a real app these would be set via business logic or input
+              attendanceCount: 0,
+              sessionsRemaining: 30,
+              age: 18,
+              gender: 'OTHER'
+            }
           }
+        },
+        include: {
+          Member: true
         }
-      },
-      include: {
-        Member: true
+      })
+
+      // Notify the Gym Owner of the new signup
+      const owner = await tx.user.findFirst({ where: { role: 'OWNER' } })
+      if (owner) {
+        await tx.notification.create({
+          data: {
+            userId: owner.id,
+            title: "New Member Signup",
+            message: `${newUser.name} has just signed up and joined the gym!`,
+          }
+        })
       }
+
+      return newUser
     })
 
     // Return the newly created user (and member) details. The client can
     // subsequently sign in the user via NextAuth's signIn("credentials") call.
     return NextResponse.json({
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+        id: result.id,
+        email: result.email,
+        name: result.name,
+        role: result.role
       },
-      member: user.Member
+      member: result.Member
     }, { status: 201 })
   } catch (err: any) {
     console.error(err)
