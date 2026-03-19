@@ -129,7 +129,7 @@ export default function SubscriptionsPage() {
             </TabsList>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
+              <DialogTrigger>
                 <Button className="font-black uppercase tracking-widest gap-2 h-10 border-2 border-primary">
                   <Plus size={16} /> Generate Invoice
                 </Button>
@@ -143,7 +143,7 @@ export default function SubscriptionsPage() {
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Member</Label>
-                    <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                    <Select value={selectedMemberId} onValueChange={v => setSelectedMemberId(v ?? "")}>
                       <SelectTrigger className="h-12 border-2 border-muted focus:border-primary font-bold">
                         <SelectValue placeholder="Search member..." />
                       </SelectTrigger>
@@ -159,8 +159,9 @@ export default function SubscriptionsPage() {
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Plan</Label>
                       <Select value={selectedPlan} onValueChange={(v) => {
-                        setSelectedPlan(v);
-                        const p = plans.find(p => p.name.toUpperCase() === v.toUpperCase());
+                        const val = v ?? "";
+                        setSelectedPlan(val);
+                        const p = plans.find(p => p.name.toUpperCase() === val.toUpperCase());
                         if (p) setAmount(p.price.toString());
                       }}>
                         <SelectTrigger className="h-12 border-2 border-muted focus:border-primary font-bold">
@@ -307,7 +308,7 @@ export default function SubscriptionsPage() {
                         outerRadius={120}
                         paddingAngle={5}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
                       >
                         {planDistribution.map((_: any, i: number) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
