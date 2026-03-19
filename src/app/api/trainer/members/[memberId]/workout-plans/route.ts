@@ -34,13 +34,11 @@ export async function GET(
     }
     const plans = await prisma.workoutPlan.findMany({
       where: { memberId },
-      orderBy: { dayOrder: 'asc' },
       include: { exercises: true }
     })
     const result = plans.map(p => ({
       id: p.id,
       day: p.day,
-      dayOrder: p.dayOrder,
       notes: p.notes,
       exercises: p.exercises.map(e => ({
         id: e.id,
