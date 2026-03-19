@@ -178,7 +178,7 @@ export default function BookingPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                          {t.name.split(" ").map(n => n[0]).join("")}
+                          {t.name.split(" ").map((n: string) => n[0]).join("")}
                         </div>
                         <div>
                           <p className="font-medium text-sm">{t.name}</p>

@@ -174,7 +174,7 @@ export default function MembersPage() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-                              {m.name.split(" ").map(n => n[0]).join("")}
+                              {m.name.split(" ").map((n: string) => n[0]).join("")}
                             </div>
                             <div>
                               <p className="font-medium text-sm">{m.name}</p>
@@ -212,7 +212,7 @@ export default function MembersPage() {
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                      {member.name.split(" ").map(n => n[0]).join("")}
+                      {member.name.split(" ").map((n: string) => n[0]).join("")}
                     </div>
                     <div>
                       <CardTitle className="text-lg">{member.name}</CardTitle>
