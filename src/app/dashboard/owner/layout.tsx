@@ -1,0 +1,30 @@
+"use client";
+
+import { DashboardSidebar } from "@/components/shared/dashboard-sidebar";
+import { useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+
+export default function OwnerLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user || user.role !== "OWNER") {
+        router.push("/login");
+      }
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return null;
+  }
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      <DashboardSidebar role="owner" />
+      <main className="flex-1 min-w-0">{children}</main>
+    </div>
+  );
+}
