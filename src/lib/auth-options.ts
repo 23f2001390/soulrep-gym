@@ -73,11 +73,47 @@ export const authOptions: NextAuthOptions = {
   // Provide a secret to encrypt JWT tokens. This should be a long, random string set in the environment
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
+    async signIn({ user, account }) {
+      // Google OAuth users need a matching Member row so the member dashboard
+      // APIs can resolve profile data on first login.
+      if (account?.provider === 'google' && user?.email) {
+        const dbUser =
+          ((user as any).id && (await prisma.user.findUnique({ where: { id: (user as any).id } }))) ||
+          (await prisma.user.findUnique({ where: { email: user.email } }))
+
+        if (dbUser?.id) {
+          const existingMember = await prisma.member.findUnique({ where: { id: dbUser.id } })
+          if (!existingMember) {
+            await prisma.member.create({
+              data: {
+                id: dbUser.id,
+                joinDate: new Date(),
+                plan: 'MONTHLY',
+                planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                planStatus: 'ACTIVE',
+                attendanceCount: 0,
+                sessionsRemaining: 30,
+                age: 18,
+                gender: 'OTHER',
+              },
+            })
+          }
+        }
+      }
+      return true
+    },
     // Add the user's id and role into the JWT. These values persist across requests
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as any).id
-        token.role = (user as any).role
+        token.id = (user as any).id ?? token.sub
+        token.role = (user as any).role ?? token.role
+      }
+      if (!token.role && token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { role: true },
+        })
+        token.role = dbUser?.role
       }
       return token
     },
