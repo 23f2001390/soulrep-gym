@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const notifications = await prisma.notification.findMany({
-      where: { userId: session.user.id },
+      where: { userId: (session.user as any).id },
       orderBy: { createdAt: 'desc' },
       take: 20
     })
@@ -39,12 +39,12 @@ export async function PATCH(req: NextRequest) {
 
     if (readAll) {
       await prisma.notification.updateMany({
-        where: { userId: session.user.id, read: false },
+        where: { userId: (session.user as any).id, read: false },
         data: { read: true }
       })
     } else {
       await prisma.notification.update({
-        where: { id, userId: session.user.id },
+        where: { id, userId: (session.user as any).id },
         data: { read: true }
       })
     }
