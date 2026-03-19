@@ -102,7 +102,7 @@ export default function TrainersPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">All Trainers</CardTitle>
               <Dialog>
-                <DialogTrigger asChild>
+                <DialogTrigger>
                   <Button size="sm" className="gap-1">
                     <Plus size={14} /> Add Trainer
                   </Button>
