@@ -29,10 +29,12 @@ export default function AttendancePage() {
   const [timeRemaining, setTimeRemaining] = useState(60);
 
   const generateNewQR = () => {
-    // Unique daily code + timestamp to prevent reuse from old photos
-    const secret = "SOULREP_GYM_SECRET";
-    const timestamp = Math.floor(Date.now() / 60000); // Unique for every minute
-    const code = btoa(`${secret}:${timestamp}`);
+    // Unique daily code to prevent reuse from old photos
+    // Format: soulrep-checkin|YYYY-MM-DD|base64_secret
+    const todayStr = new Date().toISOString().split('T')[0];
+    const secret = btoa(`soulrep-secret-${todayStr}`);
+    const code = `soulrep-checkin|${todayStr}|${secret}`;
+    
     setQrValue(code);
     setTimeRemaining(60);
   };

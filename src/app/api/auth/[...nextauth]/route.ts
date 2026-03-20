@@ -1,5 +1,5 @@
 import NextAuth from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { authOptions } from '@/backend/shared/auth-options'
 
 // Export handlers for GET and POST methods. NextAuth will handle all requests
 // under this route, supporting sign‑in, sign‑out, callback and session APIs.

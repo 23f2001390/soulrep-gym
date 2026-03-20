@@ -1,9 +1,11 @@
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
 import { prisma } from '@/lib/prisma'
 import { compare } from 'bcryptjs'
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? ''
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? ''
 
 /**
  * NextAuth configuration for the SoulRep application. This configuration enables
@@ -54,11 +56,33 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-    // Google OAuth provider. Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // Google OAuth provider. We configure explicit endpoints instead of relying
+    // on runtime discovery so sign-in does not fail if well-known discovery
+    // is unavailable in the deployment environment.
+    {
+      id: 'google',
+      name: 'Google',
+      type: 'oauth',
+      issuer: 'https://accounts.google.com',
+      authorization: {
+        url: 'https://accounts.google.com/o/oauth2/v2/auth',
+        params: { scope: 'openid email profile' },
+      },
+      token: 'https://oauth2.googleapis.com/token',
+      userinfo: 'https://openidconnect.googleapis.com/v1/userinfo',
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      idToken: true,
+      checks: ['pkce', 'state'],
+      profile(profile: any) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+        }
+      },
+    },
   ],
   // Use the Prisma adapter to persist users, accounts and verification tokens
   adapter: PrismaAdapter(prisma),
@@ -72,6 +96,14 @@ export const authOptions: NextAuthOptions = {
   },
   // Provide a secret to encrypt JWT tokens. This should be a long, random string set in the environment
   secret: process.env.NEXTAUTH_SECRET,
+  logger: {
+    error(code, metadata) {
+      console.error('[next-auth][error]', code, metadata)
+    },
+    warn(code) {
+      console.warn('[next-auth][warn]', code)
+    },
+  },
   callbacks: {
     async signIn({ user, account }) {
       // Google OAuth users need a matching Member row so the member dashboard

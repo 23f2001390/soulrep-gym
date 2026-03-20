@@ -42,9 +42,10 @@ export function TopBar({ title }: { title: string }) {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // Poll every 10s
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
     return () => clearInterval(interval);
   }, []);
+
 
   const markAsRead = async (id?: string) => {
     try {
@@ -76,15 +77,13 @@ export function TopBar({ title }: { title: string }) {
         </div>
 
         <Popover>
-          <PopoverTrigger>
-            <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 transition-colors">
-              <Bell size={20} className={unreadCount > 0 ? "text-primary animate-pulse" : ""} />
-              {unreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground font-black border-2 border-background">
-                  {unreadCount}
-                </Badge>
-              )}
-            </Button>
+          <PopoverTrigger className="relative flex h-9 w-9 items-center justify-center rounded-lg border-2 border-muted hover:border-primary hover:bg-muted/50 transition-colors cursor-pointer outline-none">
+            <Bell size={20} className={unreadCount > 0 ? "text-primary animate-pulse" : ""} />
+            {unreadCount > 0 && (
+              <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[9px] bg-primary text-primary-foreground font-black border-2 border-background">
+                {unreadCount}
+              </Badge>
+            )}
           </PopoverTrigger>
           <PopoverContent className="w-80 p-0 overflow-hidden border-4 border-muted" align="end">
             <div className="p-4 bg-muted flex items-center justify-between">

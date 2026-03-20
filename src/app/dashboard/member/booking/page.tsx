@@ -34,15 +34,22 @@ export default function BookingPage() {
 
   // Fetch trainers and bookings
   useEffect(() => {
+    let isMounted = true;
     async function fetchData() {
       if (authLoading || !user) return;
       try {
-        setLoading(true);
+        // Only show full loading state if we have no data yet
+        if (trainersData.length === 0) {
+          setLoading(true);
+        }
         setError(null);
         const [trainersRes, bookingsRes] = await Promise.all([
           fetch('/api/member/trainers', { credentials: 'include' }),
           fetch('/api/member/bookings', { credentials: 'include' })
         ]);
+        
+        if (!isMounted) return;
+
         if (!trainersRes.ok) {
           const err = await trainersRes.json();
           throw new Error(err.error || 'Failed to load trainers');
@@ -51,19 +58,27 @@ export default function BookingPage() {
           const err = await bookingsRes.json();
           throw new Error(err.error || 'Failed to load bookings');
         }
+        
         const trainersList = await trainersRes.json();
         const bookingsList = await bookingsRes.json();
+        
         setTrainersData(trainersList);
         setBookingsData(bookingsList);
       } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Something went wrong');
+        if (isMounted) {
+          console.error(err);
+          setError(err.message || 'Something went wrong');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     fetchData();
+    return () => { isMounted = false; };
   }, [authLoading, user]);
+
 
   // Compute available slots when trainer/date changes
   useEffect(() => {

@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthSession } from '@/lib/auth-session'
-import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/backend/middleware/auth-middleware'
+import { getNotifications, markAsRead } from '@/backend/services/notification.service'
 
 /**
  * GET /api/notifications
  * Returns all notifications for the current user.
  */
 export async function GET(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await authenticate() 
+  if (auth.error) return auth.error
 
-  try {
-    const userId = (session.user as any).id
-    console.log(`Fetching notifications for userId: ${userId}`)
-    const notifications = await prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 20
-    })
-    return NextResponse.json(notifications)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
+  const { data, error, status } = await getNotifications(auth.user.id)
+  if (error) {
+    return NextResponse.json({ error }, { status })
   }
+  return NextResponse.json(data)
 }
 
 /**
@@ -31,24 +22,15 @@ export async function GET(req: NextRequest) {
  * Marks a notification as read.
  */
 export async function PATCH(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (auth.error) return auth.error
 
   try {
     const { id, readAll } = await req.json()
-
-    if (readAll) {
-      await prisma.notification.updateMany({
-        where: { userId: (session.user as any).id, read: false },
-        data: { read: true }
-      })
-    } else {
-      await prisma.notification.update({
-        where: { id, userId: (session.user as any).id },
-        data: { read: true }
-      })
+    const result = await markAsRead(auth.user.id, id, readAll)
+    
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
 
     return NextResponse.json({ success: true })
@@ -56,3 +38,4 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 })
   }
 }
+

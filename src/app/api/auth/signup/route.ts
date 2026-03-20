@@ -48,7 +48,15 @@ export async function POST(request: Request) {
               attendanceCount: 0,
               sessionsRemaining: 30,
               age: 18,
-              gender: 'OTHER'
+              gender: 'OTHER',
+              Invoice: {
+                create: {
+                  plan: 'MONTHLY',
+                  amount: 1800,
+                  date: new Date(),
+                  status: 'PAID'
+                }
+              }
             }
           }
         },

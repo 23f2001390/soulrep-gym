@@ -84,11 +84,10 @@ export default function LoginPage() {
                   key={r.value}
                   type="button"
                   onClick={() => handleRoleChange(r.value)}
-                  className={`flex flex-col items-center gap-1.5 p-3 border-2 transition-all text-sm font-bold uppercase ${
-                    selectedRole === r.value
+                  className={`flex flex-col items-center gap-1.5 p-3 border-2 transition-all text-sm font-bold uppercase ${selectedRole === r.value
                       ? "border-foreground bg-foreground text-background"
                       : "border-border hover:border-foreground/50"
-                  }`}
+                    }`}
                 >
                   {r.icon}
                   <span className="text-xs">{r.label}</span>
@@ -155,7 +154,7 @@ export default function LoginPage() {
             )}
             {selectedRole === "owner" && (
               <p className="text-center text-xs text-muted-foreground mt-4">
-                Owner account is pre-seeded. No signup required.
+
               </p>
             )}
           </CardContent>

@@ -1,136 +1,45 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getAuthSession } from '@/lib/auth-session'
-import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/backend/middleware/auth-middleware'
+import { getBookings, createBooking } from '@/backend/services/member.service'
 
 /**
  * GET /api/member/bookings
- *
- * Returns all bookings for the authenticated member. Query parameters:
- *  - upcoming: if set to 'true', only future bookings are returned.
- *  - status: filter bookings by their status (CONFIRMED, PENDING, CANCELLED)
+ * Returns all bookings for the authenticated member.
  */
 export async function GET(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await authenticate(['MEMBER'])
+  if (auth.error) return auth.error
+
+  const { searchParams } = new URL(req.url)
+  const upcoming = searchParams.get('upcoming') === 'true'
+  const statusParam = searchParams.get('status') || undefined
+
+  const { data, error, status } = await getBookings(auth.user.id, upcoming, statusParam)
+
+  if (error) {
+    return NextResponse.json({ error }, { status })
   }
-  const id = (session.user as any).id as string
-  const role = (session.user as any).role as string
-  if (role !== 'MEMBER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-  try {
-    const { searchParams } = new URL(req.url)
-    const upcomingParam = searchParams.get('upcoming')
-    const statusParam = searchParams.get('status')
-    const where: any = { memberId: id }
-    if (statusParam) {
-      where.status = statusParam as any
-    }
-    if (upcomingParam === 'true') {
-      where.date = { gte: new Date() }
-    }
-    const bookings = await prisma.booking.findMany({
-      where,
-      orderBy: { date: 'asc' },
-      include: {
-        trainer: {
-          select: { user: { select: { name: true } } }
-        }
-      }
-    })
-    // Shape the response to include trainerName field for convenience
-    const result = bookings.map(b => ({
-      id: b.id,
-      trainerId: b.trainerId,
-      trainerName: b.trainer.user?.name,
-      date: b.date,
-      time: b.time,
-      status: b.status
-    }))
-    return NextResponse.json(result)
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  return NextResponse.json(data)
 }
 
 /**
  * POST /api/member/bookings
- *
- * Allows a member to create a new booking with a trainer. The request body
- * must include trainerId, date (YYYY-MM-DD) and time (HH:MM). The new
- * booking is created with a PENDING status. The endpoint checks for
- * conflicts with existing bookings for the same trainer/date/time and
- * rejects if a conflict exists. Only members can access this endpoint.
+ * Allows a member to create a new booking with a trainer.
  */
 export async function POST(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const memberId = (session.user as any).id as string
-  const role = (session.user as any).role as string
-  if (role !== 'MEMBER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await authenticate(['MEMBER'])
+  if (auth.error) return auth.error
+
   try {
-    const body = await req.json()
-    const { trainerId, date, time } = body || {}
-    if (!trainerId || !date || !time) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const { trainerId, date, time } = await req.json()
+    const result = await createBooking(auth.user.id, trainerId, date, time)
+    
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
-    // Parse date to start of day in UTC (assuming date string is in YYYY-MM-DD format)
-    const bookingDate = new Date(date + 'T00:00:00.000Z')
-    // Check for existing booking conflict (same trainer/date/time)
-    const existing = await prisma.booking.findFirst({
-      where: {
-        trainerId,
-        date: bookingDate,
-        time,
-        NOT: { status: 'CANCELLED' }
-      }
-    })
-    if (existing) {
-      return NextResponse.json({ error: 'Slot already booked' }, { status: 409 })
-    }
-    const result = await prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.create({
-        data: {
-          memberId,
-          trainerId,
-          date: bookingDate,
-          time,
-          status: 'PENDING'
-        },
-        include: {
-          trainer: { include: { user: { select: { name: true } } } },
-          member: { include: { user: { select: { name: true } } } }
-        }
-      })
 
-      // Create notification for the trainer
-      await tx.notification.create({
-        data: {
-          userId: trainerId,
-          title: "New Session Booking",
-          message: `${booking.member.user.name} has requested a session on ${date} at ${time}.`,
-        }
-      })
-
-      return booking
-    })
-
-    return NextResponse.json({
-      id: result.id,
-      trainerId: result.trainerId,
-      trainerName: result.trainer.user?.name,
-      date: result.date,
-      time: result.time,
-      status: result.status
-    }, { status: 201 })
-  } catch (err) {
-    console.error(err)
+    return NextResponse.json(result.data, { status: result.status })
+  } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

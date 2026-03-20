@@ -1,53 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthSession } from '@/lib/auth-session'
-import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/backend/middleware/auth-middleware'
+import { getTrainerForMember } from '@/backend/services/member.service'
 
 /**
  * GET /api/member/trainer
- *
- * Returns the trainer assigned to the authenticated member. Includes
- * specialization, rating and availability. If the member has no trainer,
- * returns 404.
+ * Returns the trainer assigned to the authenticated member.
  */
 export async function GET(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await authenticate(['MEMBER'])
+  if (auth.error) return auth.error
+
+  const result = await getTrainerForMember(auth.user.id)
+
+  
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
-  const id = (session.user as any).id as string
-  const role = (session.user as any).role as string
-  if (role !== 'MEMBER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-  try {
-    const member = await prisma.member.findUnique({
-      where: { id },
-      select: { trainerId: true }
-    })
-    if (!member || !member.trainerId) {
-      return NextResponse.json({ error: 'No trainer assigned' }, { status: 404 })
-    }
-    const trainer = await prisma.trainer.findUnique({
-      where: { id: member.trainerId },
-      include: { user: true }
-    })
-    if (!trainer) {
-      return NextResponse.json({ error: 'Trainer not found' }, { status: 404 })
-    }
-    return NextResponse.json({
-      id: trainer.id,
-      name: trainer.user?.name,
-      email: trainer.user?.email,
-      phone: trainer.user?.phone,
-      specialization: trainer.specialization,
-      rating: trainer.rating,
-      reviewCount: trainer.reviewCount,
-      memberCount: trainer.memberCount,
-      availability: trainer.availability,
-      schedule: trainer.schedule
-    })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+
+  // Note: result.data might be null if no trainer is assigned
+  return NextResponse.json(result.data)
 }

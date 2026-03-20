@@ -1,49 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthSession } from '@/lib/auth-session'
-import { prisma } from '@/lib/prisma'
+import { authenticate } from '@/backend/middleware/auth-middleware'
+import { getAttendanceRecords, markManualAttendance } from '@/backend/services/owner.service'
 
 /**
  * GET /api/owner/attendance
- *
- * Returns a list of all attendance records in the system. Only the owner
- * can access this endpoint. Each record includes the member information
- * so the client can display names alongside IDs. The frontend can
- * aggregate this data (e.g. monthly summaries) as needed.
+ * Returns all attendance records for the owner dashboard.
  */
 export async function GET(req: NextRequest) {
-  const session = await getAuthSession()
-  if (!session || !session.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await authenticate(['OWNER'])
+  if (auth.error) return auth.error
+  
+  const result = await getAttendanceRecords()
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
-  const role = (session.user as any).role as string
-  if (role !== 'OWNER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  return NextResponse.json(result.data)
+}
+
+/**
+ * POST /api/owner/attendance
+ * Manually marks attendance for a member ID.
+ */
+export async function POST(req: NextRequest) {
+  const auth = await authenticate(['OWNER'])
+  if (auth.error) return auth.error
+
   try {
-    const records = await prisma.attendanceRecord.findMany({
-      include: {
-        member: {
-          include: {
-            user: {
-              select: { name: true }
-            }
-          }
-        }
-      },
-      orderBy: { date: 'desc' }
-    })
-    const data = records.map(r => ({
-      id: r.id,
-      memberId: r.memberId,
-      memberName: r.member?.user?.name || '',
-      date: r.date.toISOString().split('T')[0],
-      checkIn: r.checkIn,
-      checkOut: r.checkOut,
-      method: r.method
-    }))
-    return NextResponse.json(data)
+    const { memberId } = await req.json()
+    const result = await markManualAttendance(memberId)
+    
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
+    }
+    return NextResponse.json(result.data)
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 }

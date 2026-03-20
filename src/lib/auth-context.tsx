@@ -55,18 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const loading = status === "loading";
-  const user = session?.user
-    ? {
-        id: (session.user as any).id,
-        email: session.user.email,
-        name: session.user.name,
-        image: session.user.image,
-        role: (session.user as any).role ?? null,
-      }
-    : null;
+  const user = React.useMemo(() => {
+    return session?.user
+      ? {
+          id: (session.user as any).id,
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image,
+          role: (session.user as any).role ?? null,
+        }
+      : null;
+  }, [session]);
+
 
   // Login using NextAuth credentials provider. Returns void or throws on error.
-  const login = async (email: string, password: string, roleHint?: string) => {
+  const login = React.useCallback(async (email: string, password: string, roleHint?: string) => {
     const result = await signIn("credentials", {
       email,
       password,
@@ -80,10 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const role = roleHint || (user?.role ?? "");
     const path = role ? `/dashboard/${role.toLowerCase()}` : "/dashboard/member";
     router.push(path);
-  };
+  }, [user, router]);
 
   // Signup via our custom API, then sign the user in via NextAuth
-  const signup = async (
+  const signup = React.useCallback(async (
     firstName: string,
     lastName: string,
     phone: string,
@@ -102,13 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // After creating the user, sign them in
     await signIn("credentials", { email, password, redirect: false });
     router.push("/dashboard/member");
-  };
+  }, [router]);
 
   // Sign the user out via NextAuth and navigate to login
-  const logout = () => {
+  const logout = React.useCallback(() => {
     signOut({ redirect: false });
     router.push("/login");
-  };
+  }, [router]);
+
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
