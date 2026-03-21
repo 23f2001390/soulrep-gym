@@ -70,18 +70,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login using NextAuth credentials provider. Returns void or throws on error.
   const login = React.useCallback(async (email: string, password: string, roleHint?: string) => {
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    if (result?.error) {
-      throw new Error(result.error || "Login failed");
-    }
     // Determine the role to redirect to. Use the hint if provided; otherwise use
     // the role from the current session (which will update shortly after signIn).
     const role = roleHint || (user?.role ?? "");
     const path = role ? `/dashboard/${role.toLowerCase()}` : "/dashboard/member";
+    
+    // Explicitly pass callbackUrl to ensure NextAuth doesn't inherit ?error= params from the current browser URL.
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+      callbackUrl: path,
+    });
+    
+    if (result?.error) {
+      throw new Error(result.error === "CredentialsSignin" ? "Invalid email or password." : (result.error || "Login failed"));
+    }
+    
     router.push(path);
   }, [user, router]);
 

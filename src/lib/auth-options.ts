@@ -74,6 +74,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: googleClientSecret,
       idToken: true,
       checks: ['pkce', 'state'],
+      allowDangerousEmailAccountLinking: true,
       profile(profile: any) {
         return {
           id: profile.sub,
