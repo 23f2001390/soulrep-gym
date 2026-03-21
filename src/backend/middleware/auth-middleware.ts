@@ -13,7 +13,7 @@ export async function authenticate(allowedRoles?: string[]) {
   }
 
   const user = session.user as any
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.some(role => role.toUpperCase() === user.role?.toUpperCase())) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 

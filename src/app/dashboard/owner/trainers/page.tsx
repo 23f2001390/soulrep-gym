@@ -23,26 +23,73 @@ export default function TrainersPage() {
   const [selectedTrainerId, setSelectedTrainerId] = useState<string | null>(null);
   const [trainerMembers, setTrainerMembers] = useState<any[]>([]);
   const [trainerReviews, setTrainerReviews] = useState<any[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTrainer, setNewTrainer] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    specialization: '',
+    password: ''
+  });
+
+  async function fetchTrainers() {
+    // Wait until auth context is loaded and a user exists
+    if (authLoading || !user) return;
+    try {
+      const res = await fetch('/api/owner/trainers', { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error('Failed to load trainers');
+      }
+      const data = await res.json();
+      setTrainersData(data);
+      if (data.length > 0 && !selectedTrainerId) {
+        setSelectedTrainerId(data[0].id);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchTrainers() {
-      // Wait until auth context is loaded and a user exists
-      if (authLoading || !user) return;
-      try {
-        const res = await fetch('/api/owner/trainers', { credentials: 'include' });
-        if (!res.ok) {
-          throw new Error('Failed to load trainers');
-        }
-        const data = await res.json();
-        setTrainersData(data);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
-    }
     fetchTrainers();
   }, [authLoading, user]);
+
+  const handleCreateTrainer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAdding(true);
+    try {
+      const res = await fetch('/api/owner/trainers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${newTrainer.firstName} ${newTrainer.lastName}`,
+          email: newTrainer.email,
+          phone: newTrainer.phone,
+          specialization: newTrainer.specialization,
+          password: newTrainer.password
+        }),
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to add trainer');
+      }
+
+      await fetchTrainers();
+      setIsDialogOpen(false);
+      setNewTrainer({ firstName: '', lastName: '', email: '', phone: '', specialization: '', password: '' });
+      alert('Trainer added successfully!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   // Fetch members and reviews when selected trainer changes
   // Fetch members and reviews when selected trainer changes
@@ -101,44 +148,86 @@ export default function TrainersPage() {
           <Card className="lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">All Trainers</CardTitle>
-              <Dialog>
-                <DialogTrigger>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger render={
                   <Button size="sm" className="gap-1">
                     <Plus size={14} /> Add Trainer
                   </Button>
-                </DialogTrigger>
-                <DialogContent>
+                } / >
+                <DialogContent className="border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
                   <DialogHeader>
-                    <DialogTitle>Add New Trainer</DialogTitle>
+                    <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Add New Trainer</DialogTitle>
                   </DialogHeader>
-                  <form className="space-y-4" onSubmit={e => e.preventDefault()}>
+                  <form className="space-y-4" onSubmit={handleCreateTrainer}>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="trainerFirst">First Name</Label>
-                        <Input id="trainerFirst" placeholder="First name" />
+                        <Input 
+                          id="trainerFirst" 
+                          placeholder="First name" 
+                          required
+                          value={newTrainer.firstName}
+                          onChange={e => setNewTrainer({...newTrainer, firstName: e.target.value})}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="trainerLast">Last Name</Label>
-                        <Input id="trainerLast" placeholder="Last name" />
+                        <Input 
+                          id="trainerLast" 
+                          placeholder="Last name" 
+                          required
+                          value={newTrainer.lastName}
+                          onChange={e => setNewTrainer({...newTrainer, lastName: e.target.value})}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="trainerEmail">Email</Label>
-                      <Input id="trainerEmail" type="email" placeholder="trainer@soulrep.in" />
+                      <Input 
+                        id="trainerEmail" 
+                        type="email" 
+                        placeholder="trainer@soulrep.in" 
+                        required
+                        value={newTrainer.email}
+                        onChange={e => setNewTrainer({...newTrainer, email: e.target.value})}
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="trainerPhone">Mobile Number</Label>
-                      <Input id="trainerPhone" type="tel" placeholder="+91 98765 43210" />
+                      <Label htmlFor="trainerPhone">Mobile Number (Optional)</Label>
+                      <Input 
+                        id="trainerPhone" 
+                        type="tel" 
+                        placeholder="+91 98765 43210" 
+                        value={newTrainer.phone}
+                        onChange={e => setNewTrainer({...newTrainer, phone: e.target.value})}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="trainerSpec">Specialization</Label>
-                      <Input id="trainerSpec" placeholder="e.g. Strength & Conditioning" />
+                      <Input 
+                        id="trainerSpec" 
+                        placeholder="e.g. Strength & Conditioning" 
+                        required
+                        value={newTrainer.specialization}
+                        onChange={e => setNewTrainer({...newTrainer, specialization: e.target.value})}
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="trainerPass">Temporary Password</Label>
-                      <Input id="trainerPass" type="password" placeholder="••••••••" />
+                      <Label htmlFor="trainerPass">Password</Label>
+                      <Input 
+                        id="trainerPass" 
+                        type="password" 
+                        placeholder="••••••••" 
+                        required
+                        value={newTrainer.password}
+                        onChange={e => setNewTrainer({...newTrainer, password: e.target.value})}
+                      />
                     </div>
-                    <Button type="submit" className="w-full uppercase font-black">Add Trainer</Button>
+                    <div className="pt-4 border-t-2 border-dashed border-black">
+                      <Button type="submit" disabled={isAdding} className="w-full uppercase font-black text-lg py-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                        {isAdding ? "Generating..." : "Add Trainer"}
+                      </Button>
+                    </div>
                   </form>
                 </DialogContent>
               </Dialog>

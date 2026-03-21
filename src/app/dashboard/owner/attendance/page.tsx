@@ -25,33 +25,7 @@ export default function AttendancePage() {
   const [search, setSearch] = useState('');
   
   // QR Code State
-  const [qrValue, setQrValue] = useState("");
-  const [timeRemaining, setTimeRemaining] = useState(60);
-
-  const generateNewQR = () => {
-    // Unique daily code to prevent reuse from old photos
-    // Format: soulrep-checkin|YYYY-MM-DD|base64_secret
-    const todayStr = new Date().toISOString().split('T')[0];
-    const secret = btoa(`soulrep-secret-${todayStr}`);
-    const code = `soulrep-checkin|${todayStr}|${secret}`;
-    
-    setQrValue(code);
-    setTimeRemaining(60);
-  };
-
-  useEffect(() => {
-    generateNewQR();
-    const interval = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          generateNewQR();
-          return 60;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [qrValue, setQrValue] = useState("soulrep-checkin-static-qr");
 
   useEffect(() => {
     async function fetchData() {
@@ -141,6 +115,7 @@ export default function AttendancePage() {
                   <div className="p-6 bg-white rounded-xl shadow-inner border-2 border-muted">
                     {qrValue && (
                       <QRCodeSVG 
+                        id="checkin-qr-code"
                         value={qrValue} 
                         size={220} 
                         level="H" 
@@ -149,12 +124,36 @@ export default function AttendancePage() {
                     )}
                   </div>
                   
-                  <div className="text-center space-y-2">
+                  <div className="text-center space-y-4">
                     <p className="font-black text-sm uppercase tracking-tighter">Scan to Record Attendance</p>
-                    <div className="flex items-center justify-center gap-2 text-primary font-bold">
-                      <RefreshCw size={14} className="animate-spin" />
-                      <span className="text-xs uppercase tracking-widest">Refreshing in {timeRemaining}s</span>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="font-bold uppercase tracking-tighter w-full border-2 border-foreground hover:bg-foreground hover:text-background transition-colors"
+                      onClick={() => {
+                        const svg = document.getElementById("checkin-qr-code");
+                        if (svg) {
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const canvas = document.createElement("canvas");
+                          const ctx = canvas.getContext("2d");
+                          const img = new window.Image();
+                          img.onload = () => {
+                            canvas.width = svg.clientWidth;
+                            canvas.height = svg.clientHeight;
+                            if (ctx) {
+                              ctx.drawImage(img, 0, 0);
+                              const pngFile = canvas.toDataURL("image/png");
+                              const downloadLink = document.createElement("a");
+                              downloadLink.download = "soulrep-attendance-qr.png";
+                              downloadLink.href = pngFile;
+                              downloadLink.click();
+                            }
+                          };
+                          img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+                        }
+                      }}
+                    >
+                      Download QR Code
+                    </Button>
                   </div>
 
                   <div className="w-full pt-6 border-t border-muted flex items-center justify-center gap-4">
@@ -251,7 +250,6 @@ export default function AttendancePage() {
                     <TableHead className="font-black uppercase tracking-tighter text-xs">Date</TableHead>
                     <TableHead className="font-black uppercase tracking-tighter text-xs">Check In</TableHead>
                     <TableHead className="font-black uppercase tracking-tighter text-xs">Check Out</TableHead>
-                    <TableHead className="font-black uppercase tracking-tighter text-xs">Method</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -261,16 +259,10 @@ export default function AttendancePage() {
                       <TableCell className="text-xs font-medium">{a.date}</TableCell>
                       <TableCell className="text-xs font-bold text-primary">{a.checkIn}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{a.checkOut || '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-black flex items-center gap-1 w-fit bg-white uppercase">
-                          {a.method === 'qr' ? <QrCode size={10} /> : <CalendarCheck size={10} />}
-                          {a.method}
-                        </Badge>
-                      </TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-12 text-xs font-bold uppercase tracking-widest">
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-12 text-xs font-bold uppercase tracking-widest">
                         No records found
                       </TableCell>
                     </TableRow>

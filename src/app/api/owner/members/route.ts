@@ -33,7 +33,25 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updateData: any = {}
-  if (plan) updateData.plan = plan
+  
+  // If plan is being updated, also update status, expiry and sessions
+  if (plan) {
+    updateData.plan = plan
+    updateData.planStatus = 'ACTIVE'
+    const now = new Date()
+    if (plan === 'MONTHLY') {
+      updateData.planExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+      updateData.sessionsRemaining = 30
+    } else if (plan === 'QUARTERLY') {
+      updateData.planExpiry = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
+      updateData.sessionsRemaining = 90
+    } else if (plan === 'YEARLY') {
+      updateData.planExpiry = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
+      updateData.sessionsRemaining = 365
+    }
+  }
+
+  // Allow individual overrides if provided
   if (trainerId !== undefined) updateData.trainerId = trainerId || null
   if (planStatus) updateData.planStatus = planStatus
   if (sessionsRemaining !== undefined) updateData.sessionsRemaining = sessionsRemaining

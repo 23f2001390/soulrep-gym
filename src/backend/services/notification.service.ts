@@ -17,6 +17,26 @@ export async function getNotifications(userId: string) {
 }
 
 /**
+ * Helper to create a notification.
+ */
+export async function createNotification(userId: string, title: string, message: string) {
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        read: false,
+      }
+    })
+    return { data: notification }
+  } catch (error) {
+    console.error('Error creating notification:', error)
+    return { error: 'Failed to create notification', status: 500 }
+  }
+}
+
+/**
  * Marks a notification as read.
  */
 export async function markAsRead(userId: string, notificationId?: string, readAll: boolean = false) {
@@ -34,6 +54,7 @@ export async function markAsRead(userId: string, notificationId?: string, readAl
     }
     return { success: true }
   } catch (error) {
+    console.error('Error updating notification:', error)
     return { error: 'Failed to update notification', status: 500 }
   }
 }

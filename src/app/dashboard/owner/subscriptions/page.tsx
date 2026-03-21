@@ -36,6 +36,13 @@ export default function SubscriptionsPage() {
   const [selectedPlan, setSelectedPlan] = useState("");
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Edit Plan State
+  const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any>(null);
+  const [editPlanName, setEditPlanName] = useState("");
+  const [editPlanPrice, setEditPlanPrice] = useState("");
+  const [editPlanFeatures, setEditPlanFeatures] = useState("");
 
   const fetchData = async () => {
     try {
@@ -45,11 +52,15 @@ export default function SubscriptionsPage() {
       ]);
       const invoicesJson = await invoicesRes.json();
       const membersJson = await membersRes.json();
-      setInvoicesData(invoicesJson);
-      setMembers(membersJson);
+      
+      const invoicesArray = Array.isArray(invoicesJson) ? invoicesJson : [];
+      const membersArray = Array.isArray(membersJson) ? membersJson : [];
+      
+      setInvoicesData(invoicesArray);
+      setMembers(membersArray);
       
       const distribution: { [key: string]: number } = {};
-      membersJson.forEach((m: any) => {
+      membersArray.forEach((m: any) => {
         distribution[m.plan] = (distribution[m.plan] || 0) + 1;
       });
       const distArray = Object.keys(distribution).map(name => ({ 
@@ -70,28 +81,72 @@ export default function SubscriptionsPage() {
   }, [authLoading, user]);
 
   const handleCreateInvoice = async () => {
-    if (!selectedMemberId || !selectedPlan || !amount) return;
+    if (!selectedMemberId || !selectedPlan || !amount) {
+      alert("Please fill all fields");
+      return;
+    }
     setIsSubmitting(true);
     try {
+      const member = members.find(m => m.id === selectedMemberId);
       const res = await fetch("/api/owner/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memberId: selectedMemberId,
-          plan: selectedPlan,
+          memberName: member?.name || "Unknown",
+          plan: selectedPlan.toUpperCase(),
           amount: parseFloat(amount),
-          status: "PENDING"
+          status: "PENDING",
+          date: new Date().toISOString()
         })
       });
+      
+      const data = await res.json();
+      
       if (res.ok) {
         setIsDialogOpen(false);
+        setSelectedMemberId("");
+        setSelectedPlan("");
+        setAmount("");
         fetchData();
+        alert("Invoice created successfully!");
+      } else {
+        alert("Error: " + (data.error || "Failed to create invoice"));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const [localPlans, setLocalPlans] = useState(plans);
+
+  const openEditPlan = (plan: any) => {
+    setEditingPlan(plan);
+    setEditPlanName(plan.name);
+    setEditPlanPrice(plan.price.toString());
+    setEditPlanFeatures(plan.features.join(", "));
+    setIsEditPlanOpen(true);
+  };
+
+  const handleUpdatePlan = () => {
+    const updated = localPlans.map(p => {
+      if (p.name === editingPlan.name) {
+        return {
+          ...p,
+          name: editPlanName,
+          price: parseInt(editPlanPrice),
+          features: editPlanFeatures.split(",").map(f => f.trim()).filter(f => f !== "")
+        };
+      }
+      return p;
+    });
+    setLocalPlans(updated);
+    setIsEditPlanOpen(false);
+    // Note: Since plans are currently hardcoded in the UI, this updates the local state for this session.
+    // In a real app, this would call an API to update a 'Plan' model in the database.
   };
 
   if (loading) {
@@ -168,7 +223,7 @@ export default function SubscriptionsPage() {
                           <SelectValue placeholder="Plan..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {plans.map(p => (
+                          {localPlans.map(p => (
                             <SelectItem key={p.name} value={p.name} className="font-bold uppercase text-xs">{p.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -261,7 +316,7 @@ export default function SubscriptionsPage() {
 
           <TabsContent value="plans">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plans.map((p, i) => (
+              {localPlans.map((p, i) => (
                 <Card key={i} className={cn(
                   'relative transition-all duration-300 rounded-none border-2 border-foreground group hover:-translate-y-1 hover:shadow-[8px_8px_0_0_rgba(0,0,0,1)]',
                   i === 2 && 'border-4'
@@ -284,11 +339,52 @@ export default function SubscriptionsPage() {
                         </li>
                       ))}
                     </ul>
-                    <Button variant="outline" className="w-full mt-8 rounded-none border-2 font-black uppercase tracking-widest h-11">Edit Plan</Button>
+                    <Button variant="outline" onClick={() => openEditPlan(p)} className="w-full mt-8 rounded-none border-2 font-black uppercase tracking-widest h-11">Edit Plan</Button>
                   </CardContent>
                 </Card>
               ))}
             </div>
+
+            <Dialog open={isEditPlanOpen} onOpenChange={setIsEditPlanOpen}>
+              <DialogContent className="sm:max-w-md border-4 border-foreground rounded-none">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-black uppercase tracking-widest" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                    EDIT PLAN CONFIGURATION
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Plan Name</Label>
+                    <Input 
+                      value={editPlanName} 
+                      onChange={(e) => setEditPlanName(e.target.value)}
+                      className="h-12 border-2 border-muted focus:border-primary font-black uppercase"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Price (₹)</Label>
+                    <Input 
+                      type="number"
+                      value={editPlanPrice} 
+                      onChange={(e) => setEditPlanPrice(e.target.value)}
+                      className="h-12 border-2 border-muted focus:border-primary font-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Features (comma separated)</Label>
+                    <textarea 
+                      value={editPlanFeatures}
+                      onChange={(e) => setEditPlanFeatures(e.target.value)}
+                      className="w-full min-h-[100px] p-3 border-2 border-muted focus:border-primary font-bold text-xs uppercase"
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="pt-6">
+                  <Button variant="outline" onClick={() => setIsEditPlanOpen(false)} className="uppercase font-black border-2">Cancel</Button>
+                  <Button onClick={handleUpdatePlan} className="uppercase font-black">SAVE CHANGES</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="analytics">

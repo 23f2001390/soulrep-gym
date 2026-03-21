@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Star, CalendarCheck, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { format, addDays, parseISO } from "date-fns";
+import { Star, CalendarCheck, CheckCircle2, Clock, AlertCircle, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -22,15 +25,13 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTrainer, setSelectedTrainer] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date();
-    today.setDate(today.getDate() + 1);
-    return today.toISOString().split('T')[0];
-  });
+  const [date, setDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [booked, setBooked] = useState(false);
+
+  const selectedDate = date ? format(date, "yyyy-MM-dd") : "";
 
   // Fetch trainers and bookings
   useEffect(() => {
@@ -84,33 +85,60 @@ export default function BookingPage() {
   useEffect(() => {
     function computeSlots() {
       const trainer = trainersData.find(t => t.id === selectedTrainer);
-      if (!trainer) {
+      if (!trainer || !date) {
         setAvailableSlots([]);
         return;
       }
-      const dateObj = new Date(selectedDate + 'T00:00:00');
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      const dayName = days[dateObj.getUTCDay()];
+      const dayName = days[date.getDay()];
       const schedule = trainer.schedule as any;
       const daySlots = schedule && schedule[dayName] ? schedule[dayName] : [];
-      const times: string[] = daySlots.map((s: any) => s.start);
-      times.sort();
-      const formatted = times.map(t => {
-        const [h, m] = t.split(':');
-        const date = new Date();
-        date.setHours(parseInt(h));
-        date.setMinutes(parseInt(m));
-        const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
-        return date.toLocaleTimeString(undefined, options).replace(/ /g, '');
+      
+      const allPossibleTimeSlots: string[] = [];
+      
+      // Expand ranges like {start: "06:00", end: "22:00", type: "available"} into hourly slots
+      daySlots.forEach((slot: any) => {
+        if (slot.type === 'available') {
+          let current = parseInt(slot.start.split(':')[0]);
+          const end = parseInt(slot.end.split(':')[0]);
+          while (current < end) {
+            allPossibleTimeSlots.push(`${current.toString().padStart(2, '0')}:00`);
+            current++;
+          }
+        } else if (slot.start) {
+          // If it's a fixed slot (legacy format)
+          allPossibleTimeSlots.push(slot.start);
+        }
       });
-      setAvailableSlots(formatted);
+
+      const formatted = allPossibleTimeSlots.map(t => {
+        const [h, m] = t.split(':');
+        const d = new Date();
+        d.setHours(parseInt(h));
+        d.setMinutes(parseInt(m));
+        const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+        return d.toLocaleTimeString(undefined, options).replace(/ /g, '');
+      });
+      
+      // Filter out duplicates and sort
+      const uniqueSorted = Array.from(new Set(formatted)).sort((a, b) => {
+        const timeToMinutes = (t: string) => {
+          const hours = parseInt(t.match(/\d+/)![0]);
+          const isPM = t.includes('PM');
+          const finalHours = (isPM && hours !== 12) ? hours + 12 : (!isPM && hours === 12) ? 0 : hours;
+          return finalHours * 60;
+        };
+        return timeToMinutes(a) - timeToMinutes(b);
+      });
+
+      setAvailableSlots(uniqueSorted);
     }
-    if (selectedTrainer && selectedDate) {
+    if (selectedTrainer && date) {
       computeSlots();
     } else {
       setAvailableSlots([]);
     }
-  }, [selectedTrainer, selectedDate, trainersData]);
+  }, [selectedTrainer, date, trainersData]);
 
   const trainer = trainersData.find(t => t.id === selectedTrainer);
 
@@ -200,7 +228,8 @@ export default function BookingPage() {
                           <p className="text-xs text-muted-foreground">{t.specialization}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <Star size={10} className="text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs text-muted-foreground">{t.rating ? t.rating.toFixed(1) : '0.0'}</span>
+                            <span className="text-xs text-muted-foreground font-medium">{t.rating ? t.rating.toFixed(1) : '0.0'}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">({t.reviewCount || 0} reviews)</span>
                           </div>
                         </div>
                       </div>
@@ -212,36 +241,63 @@ export default function BookingPage() {
               {/* Select Date */}
               <div className="space-y-2">
                 <Label>Select Date</Label>
-                <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
+                <Popover>
+                  <PopoverTrigger render={<Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal border-2 rounded-none h-11",
+                        !date && "text-muted-foreground"
+                      )}
+                    />}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      disabled={(date) => date < new Date() || date < addDays(new Date(), -1)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Select Time */}
               {selectedTrainer && (
                 <div className="space-y-2">
                   <Label>Select Time Slot</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {availableSlots.map((time: string) => {
-                      const slotBooked = isSlotBooked(time);
-                      return (
-                        <button
-                          key={time}
-                          disabled={slotBooked}
-                          onClick={() => setSelectedTime(time)}
-                          className={cn(
-                            "p-3 rounded-lg border text-center text-sm transition-all",
-                            slotBooked && "opacity-40 cursor-not-allowed line-through",
-                            !slotBooked && selectedTime === time && "border-primary bg-primary/5 font-medium",
-                            !slotBooked && selectedTime !== time && "hover:bg-muted/50",
-                            "rounded-none border-2"
-                          )}
-                        >
-                          <Clock size={14} className="mx-auto mb-1" />
-                          {time}
-                          {slotBooked && <p className="text-[10px] text-destructive">Booked</p>}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {availableSlots.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {availableSlots.map((time: string) => {
+                        const slotBooked = isSlotBooked(time);
+                        return (
+                          <button
+                            key={time}
+                            disabled={slotBooked}
+                            onClick={() => setSelectedTime(time)}
+                            className={cn(
+                              "p-3 rounded-lg border text-center text-sm transition-all",
+                              slotBooked && "opacity-40 cursor-not-allowed line-through",
+                              !slotBooked && selectedTime === time && "border-foreground bg-secondary font-medium",
+                              !slotBooked && selectedTime !== time && "hover:bg-muted/50",
+                              "rounded-none border-2"
+                            )}
+                          >
+                            <Clock size={14} className="mx-auto mb-1" />
+                            {time}
+                            {slotBooked && <p className="text-[10px] text-destructive">Booked</p>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 border-2 border-dashed text-center text-sm text-muted-foreground">
+                      No availability found for this date.
+                    </div>
+                  )}
                 </div>
               )}
 

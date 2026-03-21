@@ -19,9 +19,11 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-function getNavItems(role: Role): NavItem[] {
+function getNavItems(role: string): NavItem[] {
   const base = "/dashboard";
-  switch (role) {
+  const normalizedRole = role.toLowerCase();
+  
+  switch (normalizedRole) {
     case "owner":
       return [
         { label: "Dashboard", href: `${base}/owner`, icon: <LayoutDashboard size={20} /> },
@@ -44,16 +46,21 @@ function getNavItems(role: Role): NavItem[] {
         { label: "Reviews", href: `${base}/member/reviews`, icon: <Star size={20} /> },
         { label: "AI Nutritionist", href: `${base}/member/nutrition`, icon: <Apple size={20} /> },
       ];
+    default:
+      return [];
   }
 }
 
-function SidebarContent({ role, pathname, onNavigate }: { role: Role; pathname: string; onNavigate?: () => void }) {
+function SidebarContent({ role, pathname, onNavigate }: { role: string; pathname: string; onNavigate?: () => void }) {
   const navItems = getNavItems(role);
 
-  const roleTitles: Record<Role, string> = {
+  const roleTitles: Record<string, string> = {
     owner: "Gym Owner",
     trainer: "Trainer",
     member: "Member",
+    OWNER: "Gym Owner",
+    TRAINER: "Trainer",
+    MEMBER: "Member",
   };
 
   return (
@@ -103,7 +110,7 @@ function SidebarContent({ role, pathname, onNavigate }: { role: Role; pathname: 
   );
 }
 
-export function DashboardSidebar({ role }: { role: Role }) {
+export function DashboardSidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 

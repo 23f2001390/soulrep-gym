@@ -46,7 +46,12 @@ export default function EquipmentPage() {
     try {
       const res = await fetch("/api/owner/equipment");
       const data = await res.json();
-      setEquipment(data);
+      if (Array.isArray(data)) {
+        setEquipment(data);
+      } else {
+        console.error("Failed to fetch equipment", data);
+        setEquipment([]);
+      }
     } catch (error) {
       console.error("Failed to fetch equipment:", error);
     } finally {
@@ -85,9 +90,32 @@ export default function EquipmentPage() {
     }
   };
 
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newEqName, setNewEqName] = useState("");
+  const [newEqCategory, setNewEqCategory] = useState("");
+
+  const handleAddEquipment = async () => {
+    if (!newEqName || !newEqCategory) return;
+    try {
+      const res = await fetch("/api/owner/equipment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newEqName, category: newEqCategory, status: "Operational" }),
+      });
+      if (res.ok) {
+        setNewEqName("");
+        setNewEqCategory("");
+        setIsAddOpen(false);
+        fetchEquipment();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end mb-6">
         <div>
           <h1 className="text-4xl font-black uppercase tracking-tighter" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
             Resource Tracking
@@ -96,9 +124,37 @@ export default function EquipmentPage() {
             Machine Maintenance & Inventory logs
           </p>
         </div>
-        <Button className="font-black h-12 px-6 uppercase tracking-wider bg-primary text-primary-foreground hover:scale-105 transition-transform">
-          <Plus className="mr-2" size={20} /> Add Equipment
-        </Button>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger>
+            <Button className="font-black h-12 px-6 uppercase tracking-wider bg-primary text-primary-foreground hover:scale-105 transition-transform">
+              <Plus className="mr-2" size={20} /> Add Equipment
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md rounded-none border-4">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-widest" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                Add New Equipment
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <Input
+                placeholder="Equipment Name (e.g. Treadmill Pro)"
+                value={newEqName}
+                onChange={(e) => setNewEqName(e.target.value)}
+                className="h-12 border-2 border-muted focus:border-primary font-bold"
+              />
+              <Input
+                placeholder="Category (e.g. Cardio, Free Weights)"
+                value={newEqCategory}
+                onChange={(e) => setNewEqCategory(e.target.value)}
+                className="h-12 border-2 border-muted focus:border-primary font-bold"
+              />
+              <Button onClick={handleAddEquipment} className="w-full uppercase font-black tracking-widest h-12 mt-4 bg-primary text-primary-foreground">
+                Save Equipment
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

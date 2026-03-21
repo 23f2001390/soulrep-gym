@@ -11,7 +11,7 @@ export default function TrainerLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!loading) {
-      if (!user || user.role !== "TRAINER") {
+      if (!user || user.role?.toUpperCase() !== "TRAINER") {
         router.push("/login");
       }
     }

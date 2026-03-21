@@ -7,8 +7,10 @@ import { KPICard } from "@/components/shared/kpi-card";
 import { RevenueChart } from "@/components/shared/revenue-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, CreditCard, DollarSign, AlertTriangle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Users, CreditCard, DollarSign, AlertTriangle, Star, MessageSquare, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function OwnerDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +19,23 @@ export default function OwnerDashboard() {
   const [trainerRatings, setTrainerRatings] = useState<any[]>([]);
   const [expiringMembers, setExpiringMembers] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [selectedTrainer, setSelectedTrainer] = useState<any | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  const fetchReviews = async (trainerId: string) => {
+    setLoadingReviews(true);
+    try {
+      const res = await fetch(`/api/owner/trainers/${trainerId}/reviews`);
+      if (res.ok) {
+        setReviews(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -85,39 +104,60 @@ export default function OwnerDashboard() {
             title="Expiring Soon"
             value={kpi.expiringSoon}
             icon={<AlertTriangle size={20} />}
-            subtitle="Next 7 days"
+            subtitle="Due or Overdue"
           />
         </div>
 
-        {/* Charts Row */}
+        {/* Charts and Ratings Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RevenueChart data={revenue} />
 
-          {/* Trainer Ratings */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Trainer Ratings</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                Trainer Performance
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={trainerRatings} layout="vertical">
-                  <XAxis type="number" domain={[0, 5]} stroke="var(--muted-foreground)" fontSize={12} />
-                  <YAxis type="category" dataKey="name" stroke="var(--muted-foreground)" fontSize={12} width={60} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "0",
-                      color: "var(--foreground)",
-                    }}
-                  />
-                  <Bar dataKey="rating" radius={0}>
-                    {trainerRatings.map((_, i) => (
-                      <Cell key={i} fill={`var(--chart-${(i % 5) + 1})`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {trainerRatings.length > 0 ? (
+                <div className="space-y-4">
+                  {trainerRatings.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
+                      <div>
+                        <p className="font-bold text-sm">{t.name}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star
+                              key={s}
+                              size={12}
+                              className={s <= Math.round(t.rating) ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}
+                            />
+                          ))}
+                          <span className="text-[10px] font-black ml-1 uppercase">{t.rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-2">
+                        <Badge variant="outline" className="text-[10px] font-black uppercase tracking-tighter">
+                          {t.reviewCount} Reviews
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[10px] h-7 px-2 font-black uppercase border-2 border-foreground hover:bg-foreground hover:text-background transition-colors rounded-none"
+                          onClick={() => {
+                            setSelectedTrainer(t);
+                            fetchReviews(t.id);
+                          }}
+                        >
+                          View Reviews
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8 font-medium italic">No trainer ratings yet.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -152,6 +192,49 @@ export default function OwnerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!selectedTrainer} onOpenChange={(open) => !open && setSelectedTrainer(null)}>
+        <DialogContent className="max-w-md border-4 border-foreground rounded-none shadow-[8px_8px_0_0_var(--foreground)]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter">
+              {selectedTrainer?.name}'s Reviews
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {loadingReviews ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="animate-spin text-muted-foreground" size={32} />
+                <p className="text-xs font-bold uppercase text-muted-foreground">Fetching feedback...</p>
+              </div>
+            ) : reviews.length > 0 ? (
+              <div className="space-y-4">
+                {reviews.map((r) => (
+                  <div key={r.id} className="p-4 border-2 border-foreground bg-muted/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={12}
+                            className={s <= r.rating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">{r.date}</span>
+                    </div>
+                    <p className="text-sm font-medium italic">"{r.feedback}"</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <MessageSquare className="mx-auto text-muted-foreground mb-2" size={32} />
+                <p className="text-sm font-bold uppercase text-muted-foreground">No member reviews found.</p>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

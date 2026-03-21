@@ -20,19 +20,32 @@ export async function GET(req: NextRequest) {
   if (role !== 'MEMBER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  const { searchParams } = new URL(req.url)
+  const queryTrainerId = searchParams.get('trainerId')
+
   try {
-    const member = await prisma.member.findUnique({
-      where: { id },
-      select: { trainerId: true }
-    })
-    if (!member || !member.trainerId) {
+    let trainerId = queryTrainerId
+
+    // If no trainerId provided, default to assigned trainer
+    if (!trainerId) {
+      const member = await prisma.member.findUnique({
+        where: { id },
+        select: { trainerId: true }
+      })
+      trainerId = member?.trainerId || null
+    }
+
+    if (!trainerId) {
       return NextResponse.json([])
     }
+
     const reviews = await prisma.review.findMany({
-      where: { trainerId: member.trainerId },
+      where: { trainerId },
       orderBy: { date: 'desc' },
       include: { member: { select: { user: { select: { name: true } } } } }
     })
+
     const result = reviews.map(r => ({
       id: r.id,
       rating: r.rating,
@@ -52,12 +65,8 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/member/reviews
  *
- * Allows a member to submit a review for their trainer. The request body
- * must include `trainerId` and `rating`. An optional `feedback` field
- * can be provided. The endpoint verifies that the trainerId matches
- * the member's assigned trainer. On success, it creates a new review,
- * updates the trainer's average rating and review count, and returns
- * the created review.
+ * Allows a member to submit or update a review for any trainer.
+ * Ensures only one review per member-trainer pair exists.
  */
 export async function POST(req: NextRequest) {
   const session = await getAuthSession()
@@ -69,23 +78,61 @@ export async function POST(req: NextRequest) {
   if (role !== 'MEMBER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
   try {
     const body = await req.json()
     const { trainerId, rating, feedback } = body || {}
     if (!trainerId || !rating) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    // Verify that the trainer is the member's assigned trainer
+
+    // Verify trainer exists
+    const targetTrainer = await prisma.trainer.findUnique({ where: { id: trainerId } })
+    if (!targetTrainer) {
+      return NextResponse.json({ error: 'Trainer not found' }, { status: 404 })
+    }
+
+    // Check if member exists
     const member = await prisma.member.findUnique({
       where: { id: memberId },
-      select: { trainerId: true }
+      include: { user: { select: { name: true } } }
     })
-    if (!member || member.trainerId !== trainerId) {
-      return NextResponse.json({ error: 'Invalid trainer' }, { status: 400 })
+    if (!member) {
+      return NextResponse.json({ error: 'Member profile not found' }, { status: 404 })
     }
-    // Create review and update trainer's average rating in a transaction
-    const result = await prisma.$transaction(async tx => {
-      const review = await tx.review.create({
+
+    // Check for existing review
+    const existingReview = await prisma.review.findFirst({
+      where: { memberId, trainerId }
+    })
+
+    let finalReview;
+
+    if (existingReview) {
+      // Update existing review
+      finalReview = await prisma.review.update({
+        where: { id: existingReview.id },
+        data: {
+          rating,
+          feedback: feedback || '',
+          date: new Date()
+        },
+        include: { member: { include: { user: { select: { name: true } } } } }
+      })
+
+      // Recalculate average rating
+      const agg = await prisma.review.aggregate({
+        _avg: { rating: true },
+        where: { trainerId }
+      })
+
+      await prisma.trainer.update({
+        where: { id: trainerId },
+        data: { rating: agg._avg.rating || 0 }
+      })
+    } else {
+      // Create new review
+      finalReview = await prisma.review.create({
         data: {
           memberId,
           trainerId,
@@ -93,36 +140,35 @@ export async function POST(req: NextRequest) {
           feedback: feedback || '',
           date: new Date()
         },
-        include: {
-          member: { include: { user: { select: { name: true } } } }
-        }
+        include: { member: { include: { user: { select: { name: true } } } } }
       })
 
       // Update trainer rating and reviewCount
-      const trainer = await tx.trainer.findUnique({ where: { id: trainerId } })
+      const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } })
       if (trainer) {
         const newCount = trainer.reviewCount + 1
         const newRating = ((trainer.rating * trainer.reviewCount) + rating) / newCount
-        await tx.trainer.update({
+        await prisma.trainer.update({
           where: { id: trainerId },
           data: { rating: newRating, reviewCount: newCount }
         })
       }
+    }
 
-      // Create notification for the trainer
-      await tx.notification.create({
-        data: {
-          userId: trainerId,
-          title: "New Review Received",
-          message: `${review.member?.user?.name || 'A member'} left you a ${rating}-star review.`,
-        }
-      })
-
-      return review
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        userId: trainerId,
+        title: existingReview ? "Review Updated" : "New Review Received",
+        message: `${member.user.name} ${existingReview ? 'updated their' : 'left a'} ${rating}-star review.`,
+      }
     })
+
+    const result = finalReview;
+
     return NextResponse.json(result, { status: 201 })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+}

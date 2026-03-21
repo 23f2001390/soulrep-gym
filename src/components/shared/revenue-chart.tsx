@@ -20,7 +20,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
             <XAxis dataKey="month" stroke="var(--foreground)" fontSize={14} fontWeight={700} />
             <YAxis stroke="var(--foreground)" fontSize={12} />
             <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "3px solid var(--foreground)", borderRadius: "0", color: "var(--foreground)", fontWeight: 700 }} />
-            <Bar dataKey="revenue" fill="var(--chart-1)" radius={0} />
+            <Bar dataKey="revenue" fill="var(--chart-5)" radius={0} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

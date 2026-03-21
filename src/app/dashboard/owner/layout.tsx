@@ -11,7 +11,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading) {
-      if (!user || user.role !== "OWNER") {
+      if (!user || user.role?.toUpperCase() !== "OWNER") {
         router.push("/login");
       }
     }

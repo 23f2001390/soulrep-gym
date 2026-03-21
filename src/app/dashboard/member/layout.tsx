@@ -12,7 +12,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   // Redirect to login if there is no authenticated user or the role does not match.
   useEffect(() => {
     if (!loading) {
-      if (!user || user.role !== "MEMBER") {
+      if (!user || user.role?.toUpperCase() !== "MEMBER") {
         router.push("/login");
       }
     }

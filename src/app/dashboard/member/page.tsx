@@ -8,8 +8,9 @@ import { TopBar } from "@/components/shared/top-bar";
 import { KPICard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, CalendarCheck, Clock, Dumbbell, Star } from "lucide-react";
+import { CreditCard, CalendarCheck, Clock, Dumbbell, Star, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function MemberDashboard() {
@@ -18,20 +19,22 @@ export default function MemberDashboard() {
   const [profile, setProfile] = useState<any | null>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [trainer, setTrainer] = useState<any | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !user) return;
-    // Fetch member profile, attendance, bookings and trainer in parallel.
+    // Fetch member profile, attendance, bookings, trainer and invoices in parallel.
     const fetchData = async () => {
       try {
-        const [pRes, aRes, bRes, tRes] = await Promise.all([
+        const [pRes, aRes, bRes, tRes, iRes] = await Promise.all([
           fetch("/api/member/profile", { credentials: 'include' }),
           fetch("/api/member/attendance", { credentials: 'include' }),
           fetch("/api/member/bookings?upcoming=true", { credentials: 'include' }),
           fetch("/api/member/trainer", { credentials: 'include' }),
+          fetch("/api/member/invoices", { credentials: 'include' }),
         ]);
         if (pRes.status === 401) {
           // Session invalid or expired
@@ -45,6 +48,7 @@ export default function MemberDashboard() {
         const prof = await pRes.json();
         const att = aRes.ok ? await aRes.json() : [];
         const bkg = bRes.ok ? await bRes.json() : [];
+        const inv = iRes.ok ? await iRes.json() : [];
         let trn: any = null;
         if (tRes.status === 200) {
           trn = await tRes.json();
@@ -52,6 +56,7 @@ export default function MemberDashboard() {
         setProfile(prof);
         setAttendance(att);
         setBookings(bkg);
+        setInvoices(inv);
         setTrainer(trn);
       } catch (err) {
         console.error(err);
@@ -110,6 +115,16 @@ export default function MemberDashboard() {
   const expiryDate = new Date(member.planExpiry);
   const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
+  // Calculate plan total days for progress
+  const planTotalDays = member.plan === "MONTHLY" ? 30 : member.plan === "QUARTERLY" ? 90 : 365;
+  const planProgress = Math.max(0, Math.min(100, Math.round(((planTotalDays - daysUntilExpiry) / planTotalDays) * 100)));
+
+  const formattedExpiry = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(expiryDate);
+
   const recentAttendance = attendance.slice(0, 5);
 
   return (
@@ -128,15 +143,15 @@ export default function MemberDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
             title="Current Plan"
-            value={member.plan.charAt(0).toUpperCase() + member.plan.slice(1)}
+            value={member.plan.charAt(0).toUpperCase() + member.plan.slice(1).toLowerCase()}
             icon={<CreditCard size={20} />}
-            subtitle={`Expires ${member.planExpiry}`}
+            subtitle={`Expires ${formattedExpiry}`}
           />
           <KPICard
             title="Days Until Expiry"
-            value={daysUntilExpiry}
+            value={Math.max(0, daysUntilExpiry)}
             icon={<Clock size={20} />}
-            subtitle={daysUntilExpiry < 14 ? "Renew soon!" : "You're good"}
+            subtitle={daysUntilExpiry < 7 ? "Renew soon!" : "You're good"}
           />
           <KPICard
             title="Sessions Remaining"
@@ -168,9 +183,9 @@ export default function MemberDashboard() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Plan Duration</span>
-                  <span className="font-medium">{Math.max(0, 100 - Math.round((daysUntilExpiry / 365) * 100))}%</span>
+                  <span className="font-medium">{planProgress}%</span>
                 </div>
-                <Progress value={Math.max(0, 100 - Math.round((daysUntilExpiry / 365) * 100))} />
+                <Progress value={planProgress} />
               </div>
             </CardContent>
           </Card>
@@ -237,34 +252,45 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Bookings */}
+          {/* My Invoices */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Upcoming Sessions</CardTitle>
+              <CardTitle className="text-base">My Invoices</CardTitle>
             </CardHeader>
             <CardContent>
-              {bookings.length > 0 ? (
+              {invoices.length > 0 ? (
                 <div className="space-y-2">
-                  {bookings.map(b => (
-                    <div key={b.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  {invoices.map(inv => (
+                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-transparent hover:border-primary/20 transition-all">
                       <div>
-                        <p className="text-sm font-medium">{b.trainerName}</p>
-                        <p className="text-xs text-muted-foreground">{b.date} at {b.time}</p>
+                        <p className="text-sm font-bold uppercase tracking-tight">{inv.plan} PLAN</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                          {new Date(inv.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={cn("text-xs capitalize",
-                          b.status === "confirmed" && "bg-green-500/10 text-green-600",
-                          b.status === "pending" && "bg-yellow-500/10 text-yellow-600"
-                        )}
-                      >
-                        {b.status}
-                      </Badge>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-sm font-black text-primary">₹{inv.amount}</p>
+                          <Badge variant="outline" className={cn("text-[8px] h-4 font-black px-1", 
+                            inv.status === 'PAID' ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                          )}>
+                            {inv.status}
+                          </Badge>
+                        </div>
+                        <a 
+                          href={`/api/member/invoices/${inv.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-all text-muted-foreground"
+                        >
+                          <Download size={14} />
+                        </a>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No upcoming sessions.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No invoices generated yet.</p>
               )}
             </CardContent>
           </Card>

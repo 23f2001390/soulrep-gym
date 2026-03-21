@@ -14,7 +14,7 @@ export async function getKPIs() {
     const in7days = new Date(now)
     in7days.setDate(now.getDate() + 7)
     const expiringSoon = await prisma.member.count({
-      where: { planExpiry: { gte: now, lte: in7days } }
+      where: { planExpiry: { lte: in7days } }
     })
     return { data: { totalMembers, activePlans, revenue, expiringSoon } }
   } catch (error) {
@@ -49,8 +49,31 @@ export async function getRevenueData() {
 
 export async function getTrainerRatings() {
   try {
-    const trainers = await prisma.trainer.findMany({ include: { user: { select: { name: true } } } })
-    const result = trainers.map(t => ({ name: t.user?.name || 'Unknown', rating: t.rating })).sort((a, b) => b.rating - a.rating)
+    const trainers = await prisma.trainer.findMany({
+      include: {
+        user: { select: { name: true } },
+        Review: {
+          select: {
+            rating: true
+          }
+        }
+      }
+    })
+
+    const result = trainers.map(t => {
+      const reviewCount = t.Review.length
+      const avgRating = reviewCount > 0 
+        ? t.Review.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
+        : 0
+      
+      return {
+        id: t.id,
+        name: t.user?.name || 'Unknown',
+        rating: avgRating,
+        reviewCount: reviewCount
+      }
+    }).sort((a, b) => b.rating - a.rating)
+
     return { data: result }
   } catch (error) {
     console.error('Error fetching trainer ratings:', error)
@@ -64,8 +87,9 @@ export async function getExpiringMembers() {
     const in7days = new Date(now)
     in7days.setDate(now.getDate() + 7)
     const expiring = await prisma.member.findMany({
-      where: { planExpiry: { gte: now, lte: in7days } },
-      include: { user: { select: { name: true, email: true } } }
+      where: { planExpiry: { lte: in7days } },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { planExpiry: 'asc' }
     })
     return { data: expiring.map(m => ({ id: m.id, name: m.user?.name || 'Unknown', email: m.user?.email || 'N/A', plan: m.plan, expiry: m.planExpiry, planStatus: m.planStatus })) }
   } catch (error) {
@@ -159,12 +183,24 @@ export async function getInvoices() {
   }
 }
 
+import { inngest } from '../../lib/inngest'
+
 export async function createInvoice(invoiceData: any) {
   try {
     const { memberId, plan, amount, date, status } = invoiceData
     const invoice = await prisma.invoice.create({
       data: { memberId, plan, amount: parseFloat(amount), date: new Date(date || Date.now()), status: status || 'PENDING' }
     })
+
+    // Trigger background processing
+    await inngest.send({
+      name: "app/invoice.created",
+      data: {
+        invoiceId: invoice.id,
+        memberId: invoice.memberId,
+      },
+    });
+
     return { data: invoice }
   } catch (error) {
     console.error('Error creating invoice:', error)

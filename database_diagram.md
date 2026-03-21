@@ -1,0 +1,240 @@
+# SoulRep Gym Database Entity-Relationship Diagram
+
+This document contains the database ER diagram for the SoulRep Gym application, generated based on the Prisma schema.
+
+```mermaid
+erDiagram
+    %% Core Users
+    User {
+        String id PK
+        String name
+        String email UK
+        DateTime emailVerified
+        String image
+        String password
+        Role role "MEMBER, TRAINER, or OWNER"
+        String phone
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    Member {
+        String id PK, FK
+        DateTime joinDate
+        PlanType plan
+        DateTime planExpiry
+        PlanStatus planStatus
+        String trainerId FK
+        String healthNotes
+        Int attendanceCount
+        Int sessionsRemaining
+        Int age
+        Gender gender
+    }
+
+    Trainer {
+        String id PK, FK
+        String specialization
+        Float rating
+        Int reviewCount
+        Int memberCount
+        Availability availability
+        Json schedule
+    }
+
+    %% Member Features
+    AttendanceRecord {
+        String id PK
+        String memberId FK
+        DateTime date
+        String checkIn
+        String checkOut
+        Method method
+    }
+
+    Invoice {
+        String id PK
+        String memberId FK
+        PlanType plan
+        Int amount
+        DateTime date
+        InvoiceStatus status
+    }
+
+    %% Workouts & Sessions
+    WorkoutPlan {
+        String id PK
+        String memberId FK
+        String trainerId FK
+        String day
+        String notes
+    }
+
+    Exercise {
+        String id PK
+        String workoutPlanId FK
+        String name
+        Int sets
+        String reps
+        String rest
+        String notes
+    }
+
+    SessionLog {
+        String id PK
+        String memberId FK
+        String trainerId FK
+        DateTime date
+        Int duration
+        StringArray exercises
+        String notes
+        Boolean completed
+    }
+
+    %% Feedback & Scheduling
+    Review {
+        String id PK
+        String trainerId FK
+        String memberId FK
+        Int rating
+        String feedback
+        DateTime date
+    }
+
+    Booking {
+        String id PK
+        String memberId FK
+        String trainerId FK
+        DateTime date
+        String time
+        BookingStatus status
+    }
+
+    %% Nutrition
+    NutritionProfile {
+        String id PK
+        String memberId FK, UK
+        Int age
+        Int weight
+        Int height
+        FitnessGoal fitnessGoal
+        ActivityLevel activityLevel
+        DietaryPreference dietaryPreference
+        StringArray allergies
+        StringArray restrictions
+        Boolean completed
+    }
+
+    MealPlan {
+        String id PK
+        String memberId FK
+        DateTime date
+        Int totalCalories
+        Int totalProtein
+        Int totalCarbs
+        Int totalFat
+    }
+
+    Meal {
+        String id PK
+        String mealPlanId FK
+        MealType type
+        String name
+        String description
+        Int calories
+        Int protein
+        Int carbs
+        Int fat
+        Boolean completed
+    }
+    
+    %% Assets / Gym Resources
+    Equipment {
+        String id PK
+        String name
+        String category
+        String status
+        DateTime lastMaintenance
+        DateTime nextMaintenance
+        DateTime purchaseDate
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    MaintenanceRecord {
+        String id PK
+        String equipmentId FK
+        DateTime date
+        String type
+        String description
+        Float cost
+        String performedBy
+    }
+
+    Notification {
+        String id PK
+        String userId FK
+        String title
+        String message
+        Boolean read
+        DateTime createdAt
+    }
+
+    %% Auth Details
+    Account {
+        String id PK
+        String userId FK
+        String type
+        String provider
+        String providerAccountId
+        String refresh_token
+        String access_token
+        Int expires_at
+        String token_type
+        String scope
+        String id_token
+        String session_state
+    }
+
+    Session {
+        String id PK
+        String sessionToken UK
+        String userId FK
+        DateTime expires
+    }
+
+    VerificationToken {
+        String id PK
+        String identifier
+        String token UK
+        DateTime expires
+    }
+
+    %% Relationships Definition
+    User ||--o| Member : "can be"
+    User ||--o| Trainer : "can be"
+    Trainer ||--o{ Member : "trains"
+    
+    Member ||--o{ AttendanceRecord : "has"
+    Member ||--o{ Invoice : "pays"
+    Member ||--o{ WorkoutPlan : "follows"
+    Member ||--o{ SessionLog : "participates in"
+    Member ||--o{ Review : "writes"
+    Member ||--o{ Booking : "makes"
+    Member ||--o| NutritionProfile : "has"
+    Member ||--o{ MealPlan : "receives"
+    
+    Trainer ||--o{ WorkoutPlan : "creates"
+    Trainer ||--o{ SessionLog : "conducts"
+    Trainer ||--o{ Review : "receives"
+    Trainer ||--o{ Booking : "assigned to"
+    
+    WorkoutPlan ||--o{ Exercise : "contains"
+    MealPlan ||--o{ Meal : "includes"
+    
+    Equipment ||--o{ MaintenanceRecord : "undergoes"
+    
+    User ||--o{ Notification : "receives"
+    User ||--o{ Account : "owns"
+    User ||--o{ Session : "has"
+```

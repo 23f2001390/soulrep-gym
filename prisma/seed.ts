@@ -51,16 +51,10 @@ async function main() {
   })
 
   const trainerData = [
-    { id: 't1', name: 'Chris Walker', email: 'chris@soulrep.com', phone: '+1-555-0101', specialization: 'Strength & Conditioning', rating: 4.8, reviewCount: 47, memberCount: 12, availability: Availability.AVAILABLE },
-    { id: 't2', name: 'Priya Sharma', email: 'priya@soulrep.com', phone: '+1-555-0102', specialization: 'Yoga & Flexibility', rating: 4.9, reviewCount: 63, memberCount: 15, availability: Availability.AVAILABLE },
-    { id: 't3', name: 'Marcus Johnson', email: 'marcus@soulrep.com', phone: '+1-555-0103', specialization: 'HIIT & Cardio', rating: 4.6, reviewCount: 31, memberCount: 10, availability: Availability.BUSY },
-    { id: 't4', name: 'Elena Rodriguez', email: 'elena@soulrep.com', phone: '+1-555-0104', specialization: 'CrossFit', rating: 4.7, reviewCount: 28, memberCount: 8, availability: Availability.AVAILABLE },
-    { id: 't5', name: 'David Park', email: 'david@soulrep.com', phone: '+1-555-0105', specialization: 'Powerlifting', rating: 4.5, reviewCount: 22, memberCount: 6, availability: Availability.OFF },
-    { id: 't6', name: 'James Wilson', email: 'james@soulrep.com', phone: '+1-555-0106', specialization: 'Bodybuilding', rating: 4.9, reviewCount: 55, memberCount: 20, availability: Availability.AVAILABLE },
-    { id: 't7', name: 'Sarah Miller', email: 'sarah@soulrep.com', phone: '+1-555-0107', specialization: 'Weight Loss', rating: 4.7, reviewCount: 42, memberCount: 14, availability: Availability.AVAILABLE },
-    { id: 't8', name: 'Robert Brown', email: 'robert@soulrep.com', phone: '+1-555-0108', specialization: 'Boxing & MMA', rating: 4.6, reviewCount: 38, memberCount: 11, availability: Availability.AVAILABLE },
-    { id: 't9', name: 'Emma Davis', email: 'emma@soulrep.com', phone: '+1-555-0109', specialization: 'Pilates', rating: 4.8, reviewCount: 29, memberCount: 9, availability: Availability.AVAILABLE },
-    { id: 't10', name: 'Michael Clark', email: 'michael@soulrep.com', phone: '+1-555-0110', specialization: 'Mobility & Rehab', rating: 4.9, reviewCount: 61, memberCount: 18, availability: Availability.AVAILABLE },
+    { id: 't1', name: 'Trainer 1 (Male)', email: 'trainer1@soulrep.com', phone: '+1-555-0101', specialization: 'Strength & Conditioning', rating: 4.8, reviewCount: 47, memberCount: 12, availability: Availability.AVAILABLE },
+    { id: 't2', name: 'Trainer 2 (Male)', email: 'trainer2@soulrep.com', phone: '+1-555-0102', specialization: 'Yoga & Flexibility', rating: 4.9, reviewCount: 63, memberCount: 15, availability: Availability.AVAILABLE },
+    { id: 't3', name: 'Trainer 3 (Male)', email: 'trainer3@soulrep.com', phone: '+1-555-0103', specialization: 'HIIT & Cardio', rating: 4.6, reviewCount: 31, memberCount: 10, availability: Availability.BUSY },
+    { id: 't4', name: 'Trainer 4 (Female)', email: 'trainer4@soulrep.com', phone: '+1-555-0104', specialization: 'CrossFit', rating: 4.7, reviewCount: 28, memberCount: 8, availability: Availability.AVAILABLE },
   ]
 
   for (const t of trainerData) {

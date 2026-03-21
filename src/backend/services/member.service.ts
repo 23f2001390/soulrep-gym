@@ -142,29 +142,21 @@ export async function markAttendance(memberId: string, code: string) {
   }
 
   try {
-    const parts = code.split('|')
-    if (parts.length !== 3 || parts[0] !== 'soulrep-checkin') {
-      return { error: 'Invalid QR Code format', status: 400 }
+    if (code !== 'soulrep-checkin-static-qr') {
+      return { error: 'Invalid QR Code', status: 400 }
     }
 
-    const [_, datePart, secret] = parts
     const todayStr = new Date().toISOString().split('T')[0]
-
-    // Code must be for today
-    if (datePart !== todayStr) {
-      return { error: 'Invalid or Expired QR Code (Date mismatch)', status: 400 }
-    }
-
-    // Verify cryptographic secret
-    const validSecret = Buffer.from(`soulrep-secret-${todayStr}`).toString('base64')
-    if (secret !== validSecret) {
-      return { error: 'Invalid or Expired QR Code (Secret mismatch)', status: 400 }
-    }
 
     // Check if member exists
     const member = await prisma.member.findUnique({ where: { id: memberId } })
     if (!member) {
       return { error: 'Member profile not found', status: 404 }
+    }
+
+    // Check if plan is expired
+    if (new Date() > new Date(member.planExpiry)) {
+      return { error: 'Membership plan has expired', status: 403 }
     }
 
     // Check if already checked in today
@@ -189,12 +181,11 @@ export async function markAttendance(memberId: string, code: string) {
         }
       })
 
-      // Update attendance count and sessions remaining
+      // Update attendance count
       await tx.member.update({
         where: { id: memberId },
         data: {
-          attendanceCount: { increment: 1 },
-          sessionsRemaining: { decrement: 1 }
+          attendanceCount: { increment: 1 }
         }
       })
 
@@ -254,6 +245,14 @@ export async function createBooking(memberId: string, trainerId: string, date: s
     return { error: 'Missing required fields', status: 400 }
   }
 
+  const member = await prisma.member.findUnique({ where: { id: memberId } })
+  if (!member) {
+    return { error: 'Member not found', status: 404 }
+  }
+  if (member.sessionsRemaining <= 0) {
+    return { error: 'No trainer sessions remaining on your plan', status: 403 }
+  }
+
   const bookingDate = new Date(date + 'T00:00:00.000Z')
 
   const existing = await prisma.booking.findFirst({
@@ -291,6 +290,12 @@ export async function createBooking(memberId: string, trainerId: string, date: s
           title: "New Session Booking",
           message: `${booking.member.user?.name || 'A member'} has requested a session on ${date} at ${time}.`,
         }
+      })
+
+      // Decrement the PT sessions balance
+      await tx.member.update({
+        where: { id: memberId },
+        data: { sessionsRemaining: { decrement: 1 } }
       })
 
       return booking
