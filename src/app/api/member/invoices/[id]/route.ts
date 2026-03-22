@@ -42,7 +42,7 @@ export async function GET(
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #fff; color: #111; padding: 40px; max-width: 720px; margin: auto; }
+    body { font-family: 'Inter', sans-serif; background: #fff; color: #111; padding: 40px; max-width: 800px; margin: auto; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 4px solid #111; padding-bottom: 24px; margin-bottom: 32px; }
     .gym-name { font-size: 36px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
     .gym-sub { font-size: 11px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #666; margin-top: 4px; }
@@ -67,16 +67,21 @@ export async function GET(
     .status-PENDING { color: #ca8a04; border-color: #ca8a04; background: #fefce8; }
     .status-OVERDUE { color: #dc2626; border-color: #dc2626; background: #fef2f2; }
     .footer { margin-top: 48px; border-top: 2px solid #eee; padding-top: 24px; font-size: 11px; color: #888; text-align: center; font-weight: 600; letter-spacing: 1px; }
+    .controls { background: #f4f4f5; padding: 12px; display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; border-radius: 8px; }
+    .btn { padding: 8px 16px; font-size: 12px; font-weight: 900; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
+    .btn-primary { background: #111; color: #fff; }
     @media print {
-      .no-print { display: none; }
-      body { padding: 20px; }
+      .no-print { display: none !important; }
+      body { padding: 0; }
     }
-    .print-btn { display: block; margin: 0 auto 32px; padding: 12px 32px; background: #111; color: #fff; font-size: 12px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; border: none; cursor: pointer; }
-    .print-btn:hover { background: #333; }
   </style>
 </head>
-<body>
-  <button class="print-btn no-print" onclick="window.print()">⬇ Save as PDF</button>
+<body onload="window.print()">
+  <div class="controls no-print">
+    <button class="btn btn-primary" onclick="window.print()">⬇ Save as PDF</button>
+    <button class="btn" onclick="window.close()" style="background:#ddd">Close</button>
+  </div>
+  
   <div class="header">
     <div>
       <div class="gym-name">SoulRep</div>
@@ -140,8 +145,7 @@ export async function GET(
 
   return new NextResponse(html, {
     headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `inline; filename="invoice-${invoiceNo}.html"`,
+      'Content-Type': 'text/html; charset=utf-8'
     }
   })
 }
