@@ -10,8 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, CalendarCheck, Clock, Dumbbell, Star, Download } from "lucide-react";
+import { CreditCard, CalendarCheck, Clock, Dumbbell, Star, Download, Utensils, Layout } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import NutritionCoach from "@/components/dashboard/member/nutrition-coach";
 
 export default function MemberDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -131,13 +133,24 @@ export default function MemberDashboard() {
     <div>
       <TopBar title="My Dashboard" />
       <div className="p-4 lg:p-6 space-y-6">
-        {/* Welcome */}
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
             Hey, {member?.name?.split(" ")[0] || "Friend"} 💪
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Track your progress and stay consistent.</p>
         </div>
+
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Layout size={16} /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="nutrition" className="flex items-center gap-2">
+              <Utensils size={16} /> Nutrition Coach
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -295,6 +308,12 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
         </div>
+        </TabsContent>
+
+        <TabsContent value="nutrition">
+          <NutritionCoach />
+        </TabsContent>
+      </Tabs>
       </div>
     </div>
   );

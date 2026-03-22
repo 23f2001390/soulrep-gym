@@ -274,16 +274,28 @@ model NutritionProfile {
   id                String   @id @default(uuid())
   memberId          String   @unique
   member            Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  age               Int
-  weight            Int
-  height            Int
+  age               Int?
+  weight            Float?
+  height            Float?
   fitnessGoal       FitnessGoal
   activityLevel     ActivityLevel
   dietaryPreference DietaryPreference
+  cuisinePreference String?  // e.g., "South Indian", "North Indian"
+  usualDiet         String?  @db.Text
   allergies         String[]
   restrictions      String[]
-  completed         Boolean
+  
+  // AI Calculated Targets
+  targetCalories    Int?
+  targetProtein     Float?
+  targetCarbs       Float?
+  targetFat         Float?
+  
+  completed         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
+
 
 /// MealPlan aggregates meals for a given date and member.
 model MealPlan {
