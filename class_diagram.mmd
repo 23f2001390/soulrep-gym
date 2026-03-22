@@ -1,0 +1,329 @@
+classDiagram
+    %% Enums
+    class Role {
+        <<enumeration>>
+        OWNER
+        TRAINER
+        MEMBER
+    }
+
+    class PlanType {
+        <<enumeration>>
+        MONTHLY
+        QUARTERLY
+        YEARLY
+    }
+
+    class PlanStatus {
+        <<enumeration>>
+        ACTIVE
+        EXPIRING
+        EXPIRED
+    }
+
+    class Gender {
+        <<enumeration>>
+        MALE
+        FEMALE
+        OTHER
+    }
+
+    class Availability {
+        <<enumeration>>
+        AVAILABLE
+        BUSY
+        OFF
+    }
+
+    class Method {
+        <<enumeration>>
+        QR
+        MANUAL
+    }
+
+    class InvoiceStatus {
+        <<enumeration>>
+        PAID
+        PENDING
+        OVERDUE
+    }
+
+    class BookingStatus {
+        <<enumeration>>
+        CONFIRMED
+        PENDING
+        CANCELLED
+    }
+
+    class MealType {
+        <<enumeration>>
+        BREAKFAST
+        LUNCH
+        DINNER
+        SNACK
+    }
+
+    class FitnessGoal {
+        <<enumeration>>
+        FAT_LOSS
+        MUSCLE_GAIN
+        MAINTENANCE
+        ENDURANCE
+        FLEXIBILITY
+    }
+
+    class ActivityLevel {
+        <<enumeration>>
+        SEDENTARY
+        LIGHT
+        MODERATE
+        ACTIVE
+        VERY_ACTIVE
+    }
+
+    class DietaryPreference {
+        <<enumeration>>
+        VEG
+        NON_VEG
+        VEGAN
+        EGGETARIAN
+        PESCATARIAN
+    }
+
+    %% Core identity
+    class User {
+        +String id
+        +String? name
+        +String? email
+        +DateTime? emailVerified
+        +String? image
+        +String? password
+        +Role role
+        +String? phone
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    class Account {
+        +String id
+        +String userId
+        +String type
+        +String provider
+        +String providerAccountId
+        +String? refresh_token
+        +String? access_token
+        +Int? expires_at
+        +String? token_type
+        +String? scope
+        +String? id_token
+        +String? session_state
+    }
+
+    class Session {
+        +String id
+        +String sessionToken
+        +String userId
+        +DateTime expires
+    }
+
+    class VerificationToken {
+        +String id
+        +String identifier
+        +String token
+        +DateTime expires
+    }
+
+    class Notification {
+        +String id
+        +String userId
+        +String title
+        +String message
+        +Boolean read
+        +DateTime createdAt
+    }
+
+    %% People domain
+    class Member {
+        +String id
+        +DateTime joinDate
+        +PlanType plan
+        +DateTime planExpiry
+        +PlanStatus planStatus
+        +String? trainerId
+        +String? healthNotes
+        +Int attendanceCount
+        +Int sessionsRemaining
+        +Int age
+        +Gender gender
+    }
+
+    class Trainer {
+        +String id
+        +String specialization
+        +Float rating
+        +Int reviewCount
+        +Int memberCount
+        +Availability availability
+        +Json? schedule
+    }
+
+    class AttendanceRecord {
+        +String id
+        +String memberId
+        +DateTime date
+        +String checkIn
+        +String? checkOut
+        +Method method
+    }
+
+    class Invoice {
+        +String id
+        +String memberId
+        +PlanType plan
+        +Int amount
+        +DateTime date
+        +InvoiceStatus status
+    }
+
+    class Review {
+        +String id
+        +String trainerId
+        +String? memberId
+        +Int rating
+        +String feedback
+        +DateTime date
+    }
+
+    class Booking {
+        +String id
+        +String memberId
+        +String trainerId
+        +DateTime date
+        +String time
+        +BookingStatus status
+    }
+
+    %% Workout domain
+    class WorkoutPlan {
+        +String id
+        +String memberId
+        +String trainerId
+        +String day
+        +String? notes
+    }
+
+    class Exercise {
+        +String id
+        +String workoutPlanId
+        +String name
+        +Int sets
+        +String reps
+        +String rest
+        +String? notes
+    }
+
+    class SessionLog {
+        +String id
+        +String memberId
+        +String trainerId
+        +DateTime date
+        +Int duration
+        +String[] exercises
+        +String? notes
+        +Boolean completed
+    }
+
+    %% Nutrition domain
+    class NutritionProfile {
+        +String id
+        +String memberId
+        +Int? age
+        +Float? weight
+        +Float? height
+        +FitnessGoal fitnessGoal
+        +ActivityLevel activityLevel
+        +DietaryPreference dietaryPreference
+        +String? cuisinePreference
+        +String? usualDiet
+        +String[] allergies
+        +String[] restrictions
+        +Int? targetCalories
+        +Float? targetProtein
+        +Float? targetCarbs
+        +Float? targetFat
+        +Boolean completed
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    class MealPlan {
+        +String id
+        +String memberId
+        +DateTime date
+        +Int totalCalories
+        +Int totalProtein
+        +Int totalCarbs
+        +Int totalFat
+    }
+
+    class Meal {
+        +String id
+        +String mealPlanId
+        +MealType type
+        +String name
+        +String description
+        +Int calories
+        +Int protein
+        +Int carbs
+        +Int fat
+        +Boolean completed
+    }
+
+    %% Equipment domain
+    class Equipment {
+        +String id
+        +String name
+        +String category
+        +String status
+        +DateTime? lastMaintenance
+        +DateTime? nextMaintenance
+        +DateTime? purchaseDate
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    class MaintenanceRecord {
+        +String id
+        +String equipmentId
+        +DateTime date
+        +String type
+        +String description
+        +Float? cost
+        +String? performedBy
+    }
+
+    %% Relationships
+    User "1" --> "0..1" Member : profile
+    User "1" --> "0..1" Trainer : profile
+    User "1" --> "0..*" Account : accounts
+    User "1" --> "0..*" Session : sessions
+    User "1" --> "0..*" Notification : notifications
+
+    Trainer "1" --> "0..*" Member : trains
+    Trainer "1" --> "0..*" WorkoutPlan : creates
+    Trainer "1" --> "0..*" SessionLog : conducts
+    Trainer "1" --> "0..*" Review : receives
+    Trainer "1" --> "0..*" Booking : assigned
+
+    Member "1" --> "0..*" AttendanceRecord : attendance
+    Member "1" --> "0..*" Invoice : invoices
+    Member "1" --> "0..*" WorkoutPlan : workoutPlans
+    Member "1" --> "0..*" SessionLog : sessionLogs
+    Member "1" --> "0..*" Review : writes
+    Member "1" --> "0..*" Booking : bookings
+    Member "1" --> "0..1" NutritionProfile : nutritionProfile
+    Member "1" --> "0..*" MealPlan : mealPlans
+
+    WorkoutPlan "1" --> "0..*" Exercise : exercises
+    MealPlan "1" --> "0..*" Meal : meals
+    Equipment "1" --> "0..*" MaintenanceRecord : maintenanceLogs

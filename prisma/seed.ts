@@ -3,6 +3,11 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+function attendanceDateTime(date: string, time: string | undefined) {
+  if (!time) return null
+  return new Date(`${date}T${time}:00`)
+}
+
 function makeSchedule(): any {
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
   const slots = [
@@ -145,8 +150,8 @@ async function main() {
         id: a.id,
         memberId: a.memberId,
         date: new Date(a.date),
-        checkIn: a.checkIn,
-        checkOut: a.checkOut ?? null,
+        checkIn: attendanceDateTime(a.date, a.checkIn)!,
+        checkOut: attendanceDateTime(a.date, a.checkOut),
         method: a.method
       }
     })

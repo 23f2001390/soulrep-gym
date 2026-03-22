@@ -120,8 +120,8 @@ Table AttendanceRecord {
   id String [pk]
   memberId String
   date DateTime
-  checkIn String
-  checkOut String
+  checkIn DateTime
+  checkOut DateTime
   method Method
 }
 
@@ -132,6 +132,7 @@ Table Invoice {
   amount Int
   date DateTime
   status InvoiceStatus
+  createdAt DateTime [default: `now()`]
 }
 
 Table WorkoutPlan {
@@ -139,7 +140,8 @@ Table WorkoutPlan {
   memberId String
   trainerId String
   day String
-  notes String
+  notes Text
+  createdAt DateTime [default: `now()`]
 }
 
 Table Exercise {
@@ -159,8 +161,9 @@ Table SessionLog {
   date DateTime
   duration Int
   exercises String[]
-  notes String
+  notes Text
   completed Boolean
+  createdAt DateTime [default: `now()`]
 }
 
 Table Review {
@@ -179,20 +182,29 @@ Table Booking {
   date DateTime
   time String
   status BookingStatus
+  createdAt DateTime [default: `now()`]
 }
 
 Table NutritionProfile {
   id String [pk]
   memberId String [unique]
   age Int
-  weight Int
-  height Int
+  weight Float
+  height Float
   fitnessGoal FitnessGoal
   activityLevel ActivityLevel
   dietaryPreference DietaryPreference
+  cuisinePreference String
+  usualDiet Text
   allergies String[]
   restrictions String[]
-  completed Boolean
+  targetCalories Int
+  targetProtein Float
+  targetCarbs Float
+  targetFat Float
+  completed Boolean [default: false]
+  createdAt DateTime [default: `now()`]
+  updatedAt DateTime
 }
 
 Table MealPlan {
@@ -231,6 +243,10 @@ Table Account {
   scope String
   id_token String
   session_state String
+
+  indexes {
+    (provider, providerAccountId) [unique]
+  }
 }
 
 Table Session {
@@ -245,6 +261,10 @@ Table VerificationToken {
   identifier String
   token String [unique]
   expires DateTime
+
+  indexes {
+    (identifier, token) [unique]
+  }
 }
 
 Table Equipment {
@@ -278,7 +298,6 @@ Table Notification {
   createdAt DateTime [default: `now()`]
 }
 
-// Relationships
 Ref: Member.id - User.id [delete: cascade]
 Ref: Trainer.id - User.id [delete: cascade]
 Ref: Member.trainerId > Trainer.id

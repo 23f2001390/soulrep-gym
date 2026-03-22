@@ -1,6 +1,16 @@
 import { prisma } from '../shared/prisma'
 import { Role, PlanStatus } from '@prisma/client'
 
+function formatAttendanceTime(value: Date | null): string | null {
+  if (!value) return null
+
+  return value.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 export async function getKPIs() {
   try {
     const totalMembers = await prisma.member.count()
@@ -159,7 +169,10 @@ export async function getAttendanceRecords() {
     })
     return { data: records.map(r => ({
       id: r.id, memberId: r.memberId, memberName: r.member?.user?.name || 'Unknown',
-      date: r.date.toISOString().split('T')[0], checkIn: r.checkIn, checkOut: r.checkOut, method: r.method
+      date: r.date.toISOString().split('T')[0],
+      checkIn: formatAttendanceTime(r.checkIn),
+      checkOut: formatAttendanceTime(r.checkOut),
+      method: r.method
     }))}
   } catch (error) {
     console.error('Error in getAttendanceRecords:', error)
@@ -257,7 +270,7 @@ export async function markManualAttendance(memberId: string) {
     if (!member) return { error: 'Member profile not found', status: 404 }
     const todayStr = new Date().toISOString().split('T')[0]
     const today = new Date(todayStr + 'T00:00:00.000Z')
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    const now = new Date()
     const existing = await prisma.attendanceRecord.findFirst({ where: { memberId, date: today } })
     if (existing) return { error: 'Member already checked in today', status: 400 }
     const record = await prisma.$transaction(async (tx) => {
@@ -265,7 +278,15 @@ export async function markManualAttendance(memberId: string) {
       await tx.member.update({ where: { id: memberId }, data: { attendanceCount: { increment: 1 }, sessionsRemaining: { decrement: 1 } } })
       return newRecord
     })
-    return { data: record, status: 201 }
+    return {
+      data: {
+        ...record,
+        date: record.date.toISOString().split('T')[0],
+        checkIn: formatAttendanceTime(record.checkIn),
+        checkOut: formatAttendanceTime(record.checkOut),
+      },
+      status: 201
+    }
   } catch (error) {
     console.error('[MarkManualAttendance] Error:', error)
     return { error: 'Failed to record manual attendance', status: 500 }

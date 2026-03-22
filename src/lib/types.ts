@@ -1,8 +1,8 @@
 export type Role = "owner" | "trainer" | "member";
 export type PlanType = "monthly" | "quarterly" | "yearly";
-export type FitnessGoal = "fat_loss" | "muscle_gain" | "maintenance" | "endurance" | "flexibility";
-export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
-export type DietaryPreference = "veg" | "non_veg" | "vegan" | "eggetarian" | "pescatarian";
+export type FitnessGoal = "FAT_LOSS" | "MUSCLE_GAIN" | "MAINTENANCE" | "ENDURANCE" | "FLEXIBILITY";
+export type ActivityLevel = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
+export type DietaryPreference = "VEG" | "NON_VEG" | "VEGAN" | "EGGETARIAN" | "PESCATARIAN";
 
 export interface Member {
   id: string;

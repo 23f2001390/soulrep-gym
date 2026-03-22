@@ -1,9 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import { FitnessGoal, ActivityLevel, DietaryPreference } from "@prisma/client";
+import { ActivityLevel, DietaryPreference, FitnessGoal } from "@prisma/client";
 
-// The client gets the API key from the environment variable `GEMINI_API_KEY`.
-const auth = process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {};
-const genai = new GoogleGenAI(auth);
+const MODEL_NAME = "gemini-3.1-flash-lite-preview";
+const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+const genai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const fallbackDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export interface NutritionProfileData {
   age?: number | null;
@@ -18,65 +19,310 @@ export interface NutritionProfileData {
   restrictions: string[];
 }
 
-export async function generateWeeklyDietPlan(profile: NutritionProfileData) {
-  const model = genai.getGenerativeModel({
-    model: "gemini-3-flash-preview",
+export interface GeneratedNutritionTargets {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface GeneratedNutritionMeal {
+  time: string;
+  name: string;
+  description: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface GeneratedNutritionDayPlan {
+  day: string;
+  meals: GeneratedNutritionMeal[];
+}
+
+export interface GeneratedWeeklyDietPlan {
+  targets: GeneratedNutritionTargets;
+  supplementRecommendation: string;
+  weeklyPlan: GeneratedNutritionDayPlan[];
+}
+
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Gemini returned an invalid ${label}.`);
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function requirePositiveNumber(value: unknown, label: string): number {
+  const parsed = toFiniteNumber(value);
+  if (parsed === null || parsed <= 0) {
+    throw new Error(`Gemini returned an invalid ${label}.`);
+  }
+
+  return parsed;
+}
+
+function optionalNonNegativeNumber(value: unknown): number | null {
+  const parsed = toFiniteNumber(value);
+  return parsed !== null && parsed >= 0 ? parsed : null;
+}
+
+function roundNonNegative(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(value));
+}
+
+function fillMetric(values: Array<number | null>, targetTotal: number, weights: number[]): number[] {
+  const safeTargetTotal = Math.max(0, targetTotal);
+  const knownTotal = values.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+  const missingIndexes = values
+    .map((value, index) => (value === null ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (missingIndexes.length === 0) {
+    return values.map((value) => roundNonNegative(value ?? 0));
+  }
+
+  const remaining = Math.max(0, safeTargetTotal - knownTotal);
+  const missingWeightTotal = missingIndexes.reduce<number>(
+    (sum, index) => sum + (weights[index] > 0 ? weights[index] : 1),
+    0,
+  );
+
+  return values.map((value, index) => {
+    if (value !== null) {
+      return roundNonNegative(value);
+    }
+
+    const weight = weights[index] > 0 ? weights[index] : 1;
+    const share = missingWeightTotal > 0 ? weight / missingWeightTotal : 1 / missingIndexes.length;
+    return roundNonNegative(remaining * share);
+  });
+}
+
+function extractJson(text: string): string {
+  const trimmed = text.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("Gemini did not return valid JSON.");
+  }
+
+  return trimmed.slice(start, end + 1);
+}
+
+function getGeminiErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Failed to generate diet plan.";
+  }
+
+  const anyError = error as Error & {
+    status?: number;
+    cause?: unknown;
+  };
+  const rawMessage = error.message || "";
+
+  if (
+    rawMessage.includes("API_KEY_INVALID") ||
+    rawMessage.includes("API Key not found") ||
+    rawMessage.includes("Please pass a valid API key")
+  ) {
+    return "Gemini API key is invalid or revoked. Update GEMINI_API_KEY in .env.local and restart the server.";
+  }
+
+  if (rawMessage.includes("PERMISSION_DENIED")) {
+    return "Gemini API access was denied. Check that the key is from Google AI Studio and the Generative Language API is enabled.";
+  }
+
+  if (anyError.status === 429 || rawMessage.includes("RESOURCE_EXHAUSTED")) {
+    return "Gemini rate limit reached. Try again shortly or use a different API key/project.";
+  }
+
+  return rawMessage || "Failed to generate diet plan.";
+}
+
+function normalizeTargets(rawTargets: unknown): GeneratedNutritionTargets {
+  const targets = asRecord(rawTargets, "targets");
+
+  return {
+    calories: roundNonNegative(requirePositiveNumber(targets.calories, "target calories")),
+    protein: roundNonNegative(requirePositiveNumber(targets.protein, "target protein")),
+    carbs: roundNonNegative(requirePositiveNumber(targets.carbs, "target carbs")),
+    fat: roundNonNegative(requirePositiveNumber(targets.fat, "target fat")),
+  };
+}
+
+function normalizeMeals(rawMeals: unknown, targets: GeneratedNutritionTargets): GeneratedNutritionMeal[] {
+  if (!Array.isArray(rawMeals) || rawMeals.length === 0) {
+    throw new Error("Gemini returned a day without meals.");
+  }
+
+  const meals = rawMeals.map((entry, index) => {
+    const meal = asRecord(entry, `meal ${index + 1}`);
+    const time = typeof meal.time === "string" && meal.time.trim() ? meal.time.trim() : `Meal ${index + 1}`;
+    const description =
+      typeof meal.description === "string" && meal.description.trim()
+        ? meal.description.trim()
+        : typeof meal.name === "string" && meal.name.trim()
+          ? meal.name.trim()
+          : `${time} meal`;
+    const name =
+      typeof meal.name === "string" && meal.name.trim()
+        ? meal.name.trim()
+        : description.split(/[.!?]/)[0]?.trim().slice(0, 60) || time;
+
+    return {
+      time,
+      name,
+      description,
+      calories: optionalNonNegativeNumber(meal.calories),
+      protein: optionalNonNegativeNumber(meal.protein),
+      carbs: optionalNonNegativeNumber(meal.carbs),
+      fat: optionalNonNegativeNumber(meal.fat),
+    };
   });
 
-  const prompt = `
-    You are an expert AI Nutritionist at "SoulRep Gym".
-    
-    Member Details:
-    - Age: ${profile.age || 'Not provided'}
-    - Weight: ${profile.weight || 'Not provided'} kg
-    - Height: ${profile.height || 'Not provided'} cm
-    - Goal: ${profile.fitnessGoal}
-    - Activity Level: ${profile.activityLevel}
-    - Dietary Preference: ${profile.dietaryPreference}
-    - Cuisine Preference: ${profile.cuisinePreference || 'General'}
-    - Usual Diet: ${profile.usualDiet || 'Not provided'}
-    - Allergies: ${profile.allergies.join(", ") || 'None'}
-    - Restrictions: ${profile.restrictions.join(", ") || 'None'}
+  const normalizedCalories = fillMetric(
+    meals.map((meal) => meal.calories),
+    targets.calories,
+    meals.map((meal) => meal.calories ?? 1),
+  );
+  const calorieWeights = normalizedCalories.map((calories) => (calories > 0 ? calories : 1));
 
-    Task:
-    1. Calculate Daily Macros: Calories, Protein (1.8g to 2.2g per kg if muscle gain, 1.2g to 1.5g for maintenance), Carbs, and Fats.
-    2. Recommend Protein Powder: Indicate if they should use whey/plant protein based on their weight and goal.
-    3. Generate a 7-day Weekly Diet Plan (Monday-Sunday) matching their cuisine preference (${profile.cuisinePreference}).
-    
-    Response Format (Strictly valid JSON):
-    {
-      "targets": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number
-      },
-      "supplementRecommendation": "string",
-      "weeklyPlan": [
-        {
-          "day": "Monday",
-          "meals": [
-            { "time": "Breakfast", "description": "...", "protein": number, "calories": number },
-            { "time": "Lunch", "description": "...", "protein": number, "calories": number },
-            { "time": "Snack", "description": "...", "protein": number, "calories": number },
-            { "time": "Dinner", "description": "...", "protein": number, "calories": number }
-          ]
-        },
-        ... (repeat for all days)
-      ]
-    }
-  `;
+  const normalizedProtein = fillMetric(
+    meals.map((meal) => meal.protein),
+    targets.protein,
+    calorieWeights,
+  );
+  const normalizedCarbs = fillMetric(
+    meals.map((meal) => meal.carbs),
+    targets.carbs,
+    calorieWeights,
+  );
+  const normalizedFat = fillMetric(
+    meals.map((meal) => meal.fat),
+    targets.fat,
+    calorieWeights,
+  );
+
+  return meals.map((meal, index) => ({
+    time: meal.time,
+    name: meal.name,
+    description: meal.description,
+    calories: normalizedCalories[index],
+    protein: normalizedProtein[index],
+    carbs: normalizedCarbs[index],
+    fat: normalizedFat[index],
+  }));
+}
+
+function normalizePlan(raw: unknown): GeneratedWeeklyDietPlan {
+  const plan = asRecord(raw, "nutrition plan");
+  const targets = normalizeTargets(plan.targets);
+  const weeklyPlan = Array.isArray(plan.weeklyPlan) ? plan.weeklyPlan : null;
+
+  if (!weeklyPlan || weeklyPlan.length === 0) {
+    throw new Error("Gemini returned an empty weekly plan.");
+  }
+
+  return {
+    targets,
+    supplementRecommendation:
+      typeof plan.supplementRecommendation === "string" && plan.supplementRecommendation.trim()
+        ? plan.supplementRecommendation.trim()
+        : "Use protein powder only if you cannot consistently hit your protein target through meals.",
+    weeklyPlan: weeklyPlan.map((entry, index) => {
+      const dayPlan = asRecord(entry, `weekly plan day ${index + 1}`);
+
+      return {
+        day:
+          typeof dayPlan.day === "string" && dayPlan.day.trim()
+            ? dayPlan.day.trim()
+            : fallbackDays[index] || `Day ${index + 1}`,
+        meals: normalizeMeals(dayPlan.meals, targets),
+      };
+    }),
+  };
+}
+
+export async function generateWeeklyDietPlan(profile: NutritionProfileData): Promise<GeneratedWeeklyDietPlan> {
+  if (!genai) {
+    throw new Error("Gemini API key is missing. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env.local.");
+  }
+
+  const prompt = `
+You are an expert AI nutritionist for "SoulRep Gym", a premium fitness center in India.
+
+Member Details:
+- Age: ${profile.age ?? "Not provided"}
+- Weight: ${profile.weight ?? "Not provided"} kg
+- Height: ${profile.height ?? "Not provided"} cm
+- Goal: ${profile.fitnessGoal}
+- Activity Level: ${profile.activityLevel}
+- Dietary Preference: ${profile.dietaryPreference}
+- Cuisine Preference: ${profile.cuisinePreference || "Indian"}
+- Usual Diet: ${profile.usualDiet || "Not provided"}
+- Allergies: ${profile.allergies.join(", ") || "None"}
+- Restrictions: ${profile.restrictions.join(", ") || "None"}
+
+Tasks:
+1. Calculate daily macro targets for calories, protein, carbs, and fat.
+2. Recommend whether whey protein, plant protein, or no supplement is appropriate.
+3. Generate a 7-day meal plan for Monday through Sunday.
+4. Use realistic Indian meals and ingredients aligned with the dietary preference and listed restrictions.
+5. If "No Onion & Garlic" is in restrictions, strictly exclude both.
+
+Return strictly valid JSON only. Do not use markdown fences.
+Every meal object must include:
+- "time"
+- "name"
+- "description"
+- "calories"
+- "protein"
+- "carbs"
+- "fat"
+
+Use numeric values only for calories, protein, carbs, and fat. Do not include units in JSON.
+`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    // Clean JSON from possible markdown wrap
-    const cleanJson = text.replace(/```json|```/gi, "").trim();
-    return JSON.parse(cleanJson);
+    const response = await genai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text?.trim();
+    if (!text) {
+      throw new Error("Gemini returned an empty nutrition plan response.");
+    }
+
+    return normalizePlan(JSON.parse(extractJson(text)));
   } catch (error) {
     console.error("AI Nutritionist Error:", error);
-    throw new Error("Failed to generate diet plan. Please try again later.");
+    throw new Error(getGeminiErrorMessage(error));
   }
 }

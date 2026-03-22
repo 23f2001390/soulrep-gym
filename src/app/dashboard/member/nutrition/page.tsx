@@ -26,67 +26,78 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 const fitnessGoals: { value: FitnessGoal; label: string }[] = [
-  { value: "fat_loss", label: "Fat Loss" },
-  { value: "muscle_gain", label: "Muscle Gain" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "endurance", label: "Endurance" },
-  { value: "flexibility", label: "Flexibility" },
+  { value: "FAT_LOSS", label: "Fat Loss" },
+  { value: "MUSCLE_GAIN", label: "Muscle Gain" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+  { value: "ENDURANCE", label: "Endurance" },
+  { value: "FLEXIBILITY", label: "Flexibility" },
 ];
 
 const activityLevels: { value: ActivityLevel; label: string; desc: string }[] = [
-  { value: "sedentary", label: "Sedentary", desc: "Little to no exercise" },
-  { value: "light", label: "Lightly Active", desc: "Exercise 1-3 days/week" },
-  { value: "moderate", label: "Moderately Active", desc: "Exercise 3-5 days/week" },
-  { value: "active", label: "Active", desc: "Exercise 6-7 days/week" },
-  { value: "very_active", label: "Very Active", desc: "Intense exercise daily" },
+  { value: "SEDENTARY", label: "Sedentary", desc: "Little to no exercise" },
+  { value: "LIGHT", label: "Lightly Active", desc: "Exercise 1-3 days/week" },
+  { value: "MODERATE", label: "Moderately Active", desc: "Exercise 3-5 days/week" },
+  { value: "ACTIVE", label: "Active", desc: "Exercise 6-7 days/week" },
+  { value: "VERY_ACTIVE", label: "Very Active", desc: "Intense exercise daily" },
 ];
 
 const dietaryPreferences: { value: DietaryPreference; label: string }[] = [
-  { value: "veg", label: "Vegetarian" },
-  { value: "non_veg", label: "Non-Vegetarian" },
-  { value: "vegan", label: "Vegan" },
-  { value: "eggetarian", label: "Eggetarian" },
-  { value: "pescatarian", label: "Pescatarian" },
+  { value: "VEG", label: "Vegetarian" },
+  { value: "NON_VEG", label: "Non-Vegetarian" },
+  { value: "VEGAN", label: "Vegan" },
+  { value: "EGGETARIAN", label: "Eggetarian" },
+  { value: "PESCATARIAN", label: "Pescatarian" },
 ];
 
-const commonAllergies = ["Peanuts", "Tree Nuts", "Milk", "Eggs", "Wheat", "Soy", "Fish", "Shellfish", "Sesame"];
-const commonRestrictions = ["No Pork", "No Beef", "No Alcohol", "Gluten Free", "Lactose Free", "Low Sodium", "No Sugar"];
+const commonAllergies = ["Dairy (Milk/Dahi/Paneer)", "Gluten (Wheat/Atta)", "Mustard (Sarson)", "Nuts (Cashew/Badam)", "Soy", "Sesame (Til)", "Eggs", "Mushrooms"];
+const commonRestrictions = ["No Onion & Garlic", "Pure Veg", "No Egg", "No Meat (Veg Only)", "Fasting (Vrat)", "No Alcohol", "No Sugar", "Low Sodium"];
 
 export default function NutritionPage() {
   // Use user and loading state instead of token
   const { user, loading: authLoading } = useAuth();
   // Profile and meal plan data fetched from API
-  const [profile, setProfile] = useState<Partial<NutritionProfile> | null>(null);
+  const [profile, setProfile] = useState<any>({
+    age: 0,
+    weight: 0,
+    height: 0,
+    fitnessGoal: "MUSCLE_GAIN",
+    activityLevel: "MODERATE",
+    dietaryPreference: "NON_VEG",
+    cuisinePreference: "north_indian",
+    usualDiet: "",
+    allergies: [],
+    restrictions: []
+  });
   const [mealPlanData, setMealPlanData] = useState<any>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenating] = useState(false);
   const [editPrefs, setEditPrefs] = useState(false);
 
-  // Fetch nutrition profile and meal plan on mount
-  useEffect(() => {
-    async function fetchData() {
-      if (authLoading || !user) return;
-      try {
+  async function loadNutritionData(showPageLoader = true) {
+    if (authLoading || !user) return;
+
+    try {
+      if (showPageLoader) {
         setLoading(true);
-        setError(null);
-        const [profileRes, mealRes] = await Promise.all([
-          fetch('/api/member/nutrition-profile', { credentials: 'include' }),
-          fetch('/api/member/meal-plan', { credentials: 'include' })
-        ]);
-        if (!profileRes.ok) {
-          const err = await profileRes.json();
-          throw new Error(err.error || 'Failed to load nutrition profile');
-        }
-        if (!mealRes.ok) {
-          const err = await mealRes.json();
-          throw new Error(err.error || 'Failed to load meal plan');
-        }
-        const profileData = await profileRes.json();
-        const mealData = await mealRes.json();
+      }
+      setError(null);
+      const res = await fetch('/api/member/nutrition', { credentials: 'include' });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to load nutrition data');
+      }
+
+      const data = await res.json();
+      const profileData = data.profile;
+      const lastPlan = data.mealPlans?.[0];
+
+      if (profileData) {
         setProfile({
           age: profileData.age,
           weight: profileData.weight,
@@ -94,29 +105,40 @@ export default function NutritionPage() {
           fitnessGoal: profileData.fitnessGoal,
           activityLevel: profileData.activityLevel,
           dietaryPreference: profileData.dietaryPreference,
+          cuisinePreference: profileData.cuisinePreference || "north_indian",
+          usualDiet: profileData.usualDiet || "",
           allergies: Array.isArray(profileData.allergies) ? [...profileData.allergies] : [],
           restrictions: Array.isArray(profileData.restrictions) ? [...profileData.restrictions] : [],
         });
         setShowOnboarding(!profileData.completed);
-        setMealPlanData(mealData);
-        setMeals(mealData.meals || []);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Something went wrong');
-      } finally {
+      }
+
+      if (lastPlan) {
+        setMealPlanData(lastPlan);
+        setMeals(lastPlan.meals || []);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Something went wrong');
+    } finally {
+      if (showPageLoader) {
         setLoading(false);
       }
     }
-    fetchData();
-  }, [authLoading, user]);
+  }
+
+  // Fetch nutrition profile and meal plan on mount
+  useEffect(() => {
+    void loadNutritionData();
+  }, [authLoading, user?.id]);
 
   const toggleAllergy = (allergy: string) => {
     const lower = allergy.toLowerCase();
-    setProfile(p => {
+    setProfile((p: any) => {
       const current = p || {};
       const allergies = current.allergies || [];
       const updated = allergies.includes(lower)
-        ? allergies.filter(a => a !== lower)
+        ? allergies.filter((a: any) => a !== lower)
         : [...allergies, lower];
       return { ...current, allergies: updated };
     });
@@ -124,27 +146,50 @@ export default function NutritionPage() {
 
   const toggleRestriction = (r: string) => {
     const lower = r.toLowerCase().replace(/ /g, "_");
-    setProfile(p => {
+    setProfile((p: any) => {
       const current = p || {};
       const restrictions = current.restrictions || [];
       const updated = restrictions.includes(lower)
-        ? restrictions.filter(x => x !== lower)
+        ? restrictions.filter((x: any) => x !== lower)
         : [...restrictions, lower];
       return { ...current, restrictions: updated };
     });
   };
 
   const toggleMealCompleted = (index: number) => {
-    setMeals(prev => prev.map((m, i) => i === index ? { ...m, completed: !m.completed } : m));
+    setMeals((prev: any[]) => prev.map((m: any, i: number) => i === index ? { ...m, completed: !m.completed } : m));
   };
 
-  const handleRegenerate = () => {
+  const saveProfileAndGenerate = async () => {
+    try {
+      setSubmitting(true)
+      setError(null)
+      const res = await fetch('/api/member/nutrition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(profile)
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(payload?.error || 'Failed to generate plan')
+
+      await loadNutritionData(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate plan.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
     setRegenating(true);
-    setTimeout(() => setRegenating(false), 1500);
+    await saveProfileAndGenerate();
+    setRegenating(false);
   };
 
-  const completedCalories = meals.filter(m => m.completed).reduce((a, m) => a + m.calories, 0);
+  const completedCalories = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + m.calories, 0);
   const totalCalories = mealPlanData?.totalCalories || 0;
+  const progressValue = totalCalories > 0 ? Math.min(100, (completedCalories / totalCalories) * 100) : 0;
 
   const mealTypeIcon: Record<string, string> = {
     breakfast: "🌅",
@@ -208,15 +253,27 @@ export default function NutritionPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Age</Label>
-                      <Input type="number" value={profile?.age ?? ""} onChange={e => setProfile(p => ({ ...p, age: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.age || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, age: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Weight (kg)</Label>
-                      <Input type="number" value={profile?.weight ?? ""} onChange={e => setProfile(p => ({ ...p, weight: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.weight || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, weight: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Height (cm)</Label>
-                      <Input type="number" value={profile?.height ?? ""} onChange={e => setProfile(p => ({ ...p, height: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.height || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, height: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                   </div>
 
@@ -224,7 +281,7 @@ export default function NutritionPage() {
                     <Label>Fitness Goal</Label>
                     <RadioGroup
                       value={profile?.fitnessGoal ?? undefined}
-                      onValueChange={v => setProfile(p => ({ ...p, fitnessGoal: v as FitnessGoal }))}
+                      onValueChange={(v: string) => setProfile((p: any) => ({ ...p, fitnessGoal: v as FitnessGoal }))}
                       className="grid grid-cols-1 sm:grid-cols-2 gap-2"
                     >
                       {fitnessGoals.map(g => (
@@ -244,7 +301,7 @@ export default function NutritionPage() {
                     <Label>Activity Level</Label>
                     <RadioGroup
                       value={profile?.activityLevel ?? undefined}
-                      onValueChange={v => setProfile(p => ({ ...p, activityLevel: v as ActivityLevel }))}
+                      onValueChange={(v: string) => setProfile((p: any) => ({ ...p, activityLevel: v as ActivityLevel }))}
                       className="space-y-2"
                     >
                       {activityLevels.map(l => (
@@ -266,8 +323,8 @@ export default function NutritionPage() {
                   <div className="space-y-2">
                     <Label>Dietary Preference</Label>
                     <Select
-                      value={profile?.dietaryPreference ?? undefined}
-                      onValueChange={v => setProfile(p => ({ ...p, dietaryPreference: v as DietaryPreference }))}
+                      value={profile?.dietaryPreference ?? "non_veg"}
+                      onValueChange={v => setProfile((p: any) => ({ ...p, dietaryPreference: v }))}
                     >
                       <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
@@ -276,6 +333,33 @@ export default function NutritionPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cuisine Preference</Label>
+                    <Select
+                      value={profile?.cuisinePreference ?? "north_indian"}
+                      onValueChange={v => setProfile((p: any) => ({ ...p, cuisinePreference: v }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="north_indian">North Indian</SelectItem>
+                        <SelectItem value="south_indian">South Indian</SelectItem>
+                        <SelectItem value="continental">Continental</SelectItem>
+                        <SelectItem value="middle_eastern">Middle Eastern</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Usual Diet (Describe what you eat in a day)</Label>
+                    <textarea 
+                      className="w-full p-2 border-2 rounded-none bg-background text-sm"
+                      rows={3}
+                      placeholder="e.g. Poha/Oats for breakfast, Roti/Sabzi/Rice for lunch..."
+                      value={profile?.usualDiet ?? ""}
+                      onChange={e => setProfile((p: any) => ({ ...p, usualDiet: e.target.value }))}
+                    />
                   </div>
                 </div>
               )}
@@ -362,8 +446,8 @@ export default function NutritionPage() {
                     Next <ArrowRight size={16} className="ml-1" />
                   </Button>
                 ) : (
-                  <Button onClick={() => setShowOnboarding(false)}>
-                    View Plan <ArrowRight size={16} className="ml-1" />
+                  <Button onClick={saveProfileAndGenerate} disabled={submitting}>
+                    {submitting ? "Generating..." : "Generate Plan"} <Sparkles size={16} className="ml-1" />
                   </Button>
                 )}
               </div>
@@ -406,20 +490,32 @@ export default function NutritionPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Age</Label>
-                      <Input type="number" value={profile?.age ?? ""} onChange={e => setProfile(p => ({ ...p, age: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.age || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, age: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Weight (kg)</Label>
-                      <Input type="number" value={profile?.weight ?? ""} onChange={e => setProfile(p => ({ ...p, weight: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.weight || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, weight: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Height (cm)</Label>
-                      <Input type="number" value={profile?.height ?? ""} onChange={e => setProfile(p => ({ ...p, height: +e.target.value }))} />
+                      <Input 
+                        type="number" 
+                        value={profile?.height || ""} 
+                        onChange={(e: any) => setProfile((p: any) => ({ ...p, height: e.target.value === "" ? 0 : +e.target.value }))} 
+                      />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Fitness Goal</Label>
-                    <Select value={profile?.fitnessGoal ?? undefined} onValueChange={v => setProfile(p => ({ ...p, fitnessGoal: v as FitnessGoal }))}>
+                    <Select value={profile?.fitnessGoal ?? undefined} onValueChange={(v: string) => setProfile((p: any) => ({ ...p, fitnessGoal: v as FitnessGoal }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {fitnessGoals.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
@@ -428,14 +524,14 @@ export default function NutritionPage() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Diet</Label>
-                    <Select value={profile?.dietaryPreference ?? undefined} onValueChange={v => setProfile(p => ({ ...p, dietaryPreference: v as DietaryPreference }))}>
+                    <Select value={profile?.dietaryPreference ?? undefined} onValueChange={(v: string) => setProfile((p: any) => ({ ...p, dietaryPreference: v as DietaryPreference }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {dietaryPreferences.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full" onClick={() => { setEditPrefs(false); handleRegenerate(); }}>
+                  <Button className="w-full" onClick={() => { setEditPrefs(false); handleRegenerate(); }} disabled={submitting || regenerating}>
                     Save & Regenerate
                   </Button>
                 </div>
@@ -455,7 +551,7 @@ export default function NutritionPage() {
               <p className="text-2xl font-bold">{mealPlanData?.totalCalories}</p>
               <p className="text-xs text-muted-foreground">Calories</p>
               <div className="mt-2">
-                <Progress value={(completedCalories / totalCalories) * 100} />
+                <Progress value={progressValue} />
                 <p className="text-xs text-muted-foreground mt-1">{completedCalories} consumed</p>
               </div>
             </CardContent>
@@ -509,7 +605,7 @@ export default function NutritionPage() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{mealTypeIcon[meal.type]}</span>
+                        <span className="text-lg">{mealTypeIcon[String(meal.type).toLowerCase()] || "•"}</span>
                         <div>
                           <h3 className={cn("font-semibold", meal.completed && "line-through")}>{meal.name}</h3>
                           <Badge variant="outline" className="text-xs capitalize mt-0.5">{meal.type}</Badge>

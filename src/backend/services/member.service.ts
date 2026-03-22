@@ -1,5 +1,15 @@
 import { prisma } from '../shared/prisma'
 
+function formatAttendanceTime(value: Date | null): string | null {
+  if (!value) return null
+
+  return value.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 /**
  * Service to handle member-related logic.
  */
@@ -126,7 +136,14 @@ export async function getAttendanceRecords(memberId: string, limit?: number) {
       orderBy: { date: 'desc' },
       take: limit
     })
-    return { data: records }
+    return {
+      data: records.map((record) => ({
+        ...record,
+        date: record.date.toISOString().split('T')[0],
+        checkIn: formatAttendanceTime(record.checkIn),
+        checkOut: formatAttendanceTime(record.checkOut),
+      }))
+    }
   } catch (error) {
     return { error: 'Failed to fetch attendance records', status: 500 }
   }
@@ -168,7 +185,7 @@ export async function markAttendance(memberId: string, code: string) {
       return { error: 'Already checked in today', status: 400 }
     }
 
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    const now = new Date()
     const today = new Date(todayStr + 'T00:00:00.000Z')
 
     const record = await prisma.$transaction(async (tx) => {
@@ -192,7 +209,15 @@ export async function markAttendance(memberId: string, code: string) {
       return newRecord
     })
 
-    return { data: record, status: 201 }
+    return {
+      data: {
+        ...record,
+        date: record.date.toISOString().split('T')[0],
+        checkIn: formatAttendanceTime(record.checkIn),
+        checkOut: formatAttendanceTime(record.checkOut),
+      },
+      status: 201
+    }
   } catch (err) {
     console.error('[MarkAttendance] Error:', err)
     return { error: 'Failed to record attendance', status: 500 }

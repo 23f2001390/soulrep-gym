@@ -190,8 +190,8 @@ model AttendanceRecord {
   memberId  String
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   date      DateTime
-  checkIn   String
-  checkOut  String?
+  checkIn   DateTime
+  checkOut  DateTime?
   method    Method
 }
 
@@ -204,6 +204,7 @@ model Invoice {
   amount    Int
   date      DateTime
   status    InvoiceStatus
+  createdAt DateTime @default(now())
 }
 
 /// WorkoutPlan stores a set of exercises for a particular member on a
@@ -215,7 +216,8 @@ model WorkoutPlan {
   member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
   trainer   Trainer   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   day       String
-  notes     String?
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
   exercises Exercise[]
 }
 
@@ -228,7 +230,7 @@ model Exercise {
   sets          Int
   reps          String
   rest          String
-  notes         String?
+  notes         String?     @db.Text
 }
 
 /// SessionLog captures the outcome of a training session between a trainer and a member.
@@ -241,8 +243,9 @@ model SessionLog {
   date       DateTime
   duration   Int
   exercises  String[]
-  notes      String?
+  notes      String?  @db.Text
   completed  Boolean
+  createdAt  DateTime @default(now())
 }
 
 /// Review allows members to leave feedback for their trainers.
@@ -267,6 +270,7 @@ model Booking {
   date      DateTime
   time      String
   status    BookingStatus
+  createdAt DateTime @default(now())
 }
 
 /// NutritionProfile stores high‑level nutrition preferences for a member.

@@ -4,13 +4,14 @@ import { prisma } from '@/backend/shared/prisma'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await authenticate(['MEMBER', 'OWNER'])
   if (auth.error) return auth.error
+  const { id } = await params
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       member: {
         include: { user: { select: { name: true, email: true } } }
