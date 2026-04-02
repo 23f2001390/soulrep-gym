@@ -354,3 +354,53 @@ export async function createBooking(memberId: string, trainerId: string, date: s
 }
 
 
+
+/**
+ * Updates a member's profile information.
+ */
+export async function updateMemberProfile(userId: string, data: { name?: string, phone?: string, password?: string, age?: number, gender?: any }) {
+  const { name, phone, password, age, gender } = data
+
+  const updateData: any = {}
+  if (name !== undefined) updateData.name = name
+  if (phone !== undefined) updateData.phone = phone
+  if (password !== undefined) {
+    const { hashPassword } = await import('@/lib/auth')
+    updateData.password = await hashPassword(password)
+  }
+
+  const memberUpdateData: any = {}
+  if (age !== undefined) memberUpdateData.age = age
+  if (gender !== undefined) memberUpdateData.gender = gender
+
+  try {
+    const result = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...updateData,
+        Member: {
+          update: {
+            ...memberUpdateData
+          }
+        }
+      },
+      include: { Member: true }
+    })
+
+    return {
+      data: {
+        user: {
+          id: result.id,
+          email: result.email,
+          name: result.name,
+          role: result.role,
+          phone: result.phone
+        },
+        member: result.Member
+      }
+    }
+  } catch (error) {
+    console.error('[UpdateProfile] Error:', error)
+    return { error: 'Failed to update profile', status: 500 }
+  }
+}

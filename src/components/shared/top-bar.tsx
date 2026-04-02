@@ -1,9 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { Bell, Search, Check, Trash2 } from "lucide-react";
+import { Bell, Search, Check, LogOut, User, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +8,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { ProfileDialog } from "@/components/shared/profile-dialog";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 const HEADING_FONT = "'Bebas Neue', sans-serif";
 
@@ -24,8 +34,11 @@ interface Notification {
 }
 
 export function TopBar({ title }: { title: string }) {
+  const router = useRouter();
+  const { logout } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const fetchNotifications = async () => {
     try {
@@ -121,10 +134,42 @@ export function TopBar({ title }: { title: string }) {
           </PopoverContent>
         </Popover>
 
-        <Avatar className="h-9 w-9 border-2 border-muted hover:border-primary transition-colors cursor-pointer">
-          <AvatarFallback className="text-[10px] font-black bg-muted text-foreground uppercase tracking-widest">SR</AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="h-9 w-9 rounded-full border-2 border-muted hover:border-primary transition-colors cursor-pointer outline-none overflow-hidden">
+            <Avatar className="h-full w-full">
+              <AvatarFallback className="text-[10px] font-black bg-muted text-foreground uppercase tracking-widest">SR</AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 border-4 border-muted shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-black uppercase tracking-tighter text-xs">My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-muted" />
+              <DropdownMenuItem 
+                onClick={() => setIsProfileOpen(true)}
+                className="font-bold uppercase text-[10px] tracking-widest cursor-pointer"
+              >
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator className="bg-muted" />
+            <DropdownMenuGroup>
+              <DropdownMenuItem 
+                onClick={async () => {
+                  await logout();
+                  router.push("/login");
+                }}
+                className="font-black uppercase text-[10px] tracking-widest text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
     </header>
   );
 }

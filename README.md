@@ -12,6 +12,7 @@ The business logic is decoupled from the API routes and isolated into dedicated 
 *   **Attendance Service**: Handles QR-based check-ins and session tracking.
 *   **Booking Service**: Manages trainer schedules and PT session reservations.
 *   **Review Service**: Processes trainer feedback and rating aggregation.
+*   **Member Service**: Manages member profiles, security settings (password hashing), and physiological data synchronization.
 
 ### 2. Thin API Wrappers
 Next.js API routes (`src/app/api/`) act as thin transport layers. They are responsible only for:
