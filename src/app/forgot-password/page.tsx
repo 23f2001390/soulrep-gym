@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         setStatus("error");
         setMessage(data.error || "Failed to reset password. Please check your details.");
       }
-    } catch (err) {
+    } catch {
       setStatus("error");
       setMessage("A network error occurred. Please try again.");
     }

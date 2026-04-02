@@ -1,8 +1,8 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/backend/shared/prisma'
 import { hashPassword } from '@/lib/auth'
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const { email, phone, newPassword } = await req.json()
 
