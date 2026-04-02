@@ -51,6 +51,7 @@ const dietaryPreferences: { value: DietaryPreference; label: string }[] = [
 
 const commonAllergies = ["Dairy (Milk/Dahi/Paneer)", "Gluten (Wheat/Atta)", "Mustard (Sarson)", "Nuts (Cashew/Badam)", "Soy", "Sesame (Til)", "Eggs", "Mushrooms"];
 const commonRestrictions = ["No Onion & Garlic", "Pure Veg", "No Egg", "No Meat (Veg Only)", "Fasting (Vrat)", "No Alcohol", "No Sugar", "Low Sodium"];
+const NUTRITION_REQUEST_TIMEOUT_MS = 45000;
 
 export default function NutritionPage() {
   // Use user and loading state instead of token
@@ -68,25 +69,32 @@ export default function NutritionPage() {
     allergies: [],
     restrictions: []
   });
-  const [mealPlanData, setMealPlanData] = useState<any>(null);
+  const [allMealPlans, setAllMealPlans] = useState<any[]>([]);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(true);
   const [onboardingStep, setOnboardingStep] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenating] = useState(false);
   const [editPrefs, setEditPrefs] = useState(false);
 
   async function loadNutritionData(showPageLoader = true) {
-    if (authLoading || !user) return;
+    if (authLoading || !user) {
+      if (!authLoading) setLoading(false);
+      return;
+    }
 
     try {
       if (showPageLoader) {
+        console.log('[NutritionPage] loadNutritionData started');
         setLoading(true);
       }
       setError(null);
+      console.log('[NutritionPage] Fetching /api/member/nutrition...');
       const res = await fetch('/api/member/nutrition', { credentials: 'include' });
+      console.log('[NutritionPage] Response received:', res.status);
 
       if (!res.ok) {
         const err = await res.json();
@@ -94,6 +102,7 @@ export default function NutritionPage() {
       }
 
       const data = await res.json();
+      console.log('[NutritionPage] Data parsed:', !!data);
       const profileData = data.profile;
       const lastPlan = data.mealPlans?.[0];
 
@@ -113,9 +122,14 @@ export default function NutritionPage() {
         setShowOnboarding(!profileData.completed);
       }
 
-      if (lastPlan) {
-        setMealPlanData(lastPlan);
-        setMeals(lastPlan.meals || []);
+      if (data.mealPlans && data.mealPlans.length > 0) {
+        // Sort ascending so index 0 = today, index 1 = tomorrow
+        const sortedPlans = data.mealPlans.sort(
+          (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        setAllMealPlans(sortedPlans);
+        setMeals(sortedPlans[0].meals || []);
+        setActiveTabIndex(0);
       }
     } catch (err: any) {
       console.error(err);
@@ -129,6 +143,7 @@ export default function NutritionPage() {
 
   // Fetch nutrition profile and meal plan on mount
   useEffect(() => {
+    console.log('[NutritionPage] useEffect triggered', { authLoading, userId: user?.id });
     void loadNutritionData();
   }, [authLoading, user?.id]);
 
@@ -157,25 +172,43 @@ export default function NutritionPage() {
   };
 
   const toggleMealCompleted = (index: number) => {
-    setMeals((prev: any[]) => prev.map((m: any, i: number) => i === index ? { ...m, completed: !m.completed } : m));
+    const updatedMeals = meals.map((m: any, i: number) => i === index ? { ...m, completed: !m.completed } : m);
+    setMeals(updatedMeals);
+    
+    // Also save it back into the allMealPlans array to persist across tab switches
+    setAllMealPlans(prev => {
+      const copy = [...prev];
+      if (copy[activeTabIndex]) {
+        copy[activeTabIndex] = { ...copy[activeTabIndex], meals: updatedMeals };
+      }
+      return copy;
+    });
   };
 
   const saveProfileAndGenerate = async () => {
     try {
       setSubmitting(true)
       setError(null)
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), NUTRITION_REQUEST_TIMEOUT_MS)
       const res = await fetch('/api/member/nutrition', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(profile)
+        body: JSON.stringify(profile),
+        signal: controller.signal,
       })
+      window.clearTimeout(timeoutId)
       const payload = await res.json().catch(() => null)
       if (!res.ok) throw new Error(payload?.error || 'Failed to generate plan')
 
       await loadNutritionData(false)
     } catch (err: any) {
-      setError(err.message || 'Failed to generate plan.')
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('Nutrition request timed out. Try again.')
+      } else {
+        setError(err.message || 'Failed to generate plan.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -187,9 +220,23 @@ export default function NutritionPage() {
     setRegenating(false);
   };
 
-  const completedCalories = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + m.calories, 0);
-  const totalCalories = mealPlanData?.totalCalories || 0;
-  const progressValue = totalCalories > 0 ? Math.min(100, (completedCalories / totalCalories) * 100) : 0;
+  const activePlanData = allMealPlans[activeTabIndex];
+
+  const completedCalories = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + (m.calories || 0), 0);
+  const totalCalories = activePlanData?.totalCalories || 0;
+  const progressCalories = totalCalories > 0 ? Math.min(100, (completedCalories / totalCalories) * 100) : 0;
+
+  const completedProtein = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + (m.protein || 0), 0);
+  const totalProtein = activePlanData?.totalProtein || 0;
+  const progressProtein = totalProtein > 0 ? Math.min(100, (completedProtein / totalProtein) * 100) : 0;
+
+  const completedCarbs = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + (m.carbs || 0), 0);
+  const totalCarbs = activePlanData?.totalCarbs || 0;
+  const progressCarbs = totalCarbs > 0 ? Math.min(100, (completedCarbs / totalCarbs) * 100) : 0;
+
+  const completedFat = meals.filter((m: any) => m.completed).reduce((a: number, m: any) => a + (m.fat || 0), 0);
+  const totalFat = activePlanData?.totalFat || 0;
+  const progressFat = totalFat > 0 ? Math.min(100, (completedFat / totalFat) * 100) : 0;
 
   const mealTypeIcon: Record<string, string> = {
     breakfast: "🌅",
@@ -202,7 +249,7 @@ export default function NutritionPage() {
   if (loading) {
     return (
       <div>
-        <TopBar title="AI Nutritionist" />
+        <TopBar title="Nutrition Coach" />
         <div className="p-4 lg:p-6 text-center">Loading...</div>
       </div>
     );
@@ -392,7 +439,13 @@ export default function NutritionPage() {
                     <h3 className="font-semibold">Food Restrictions</h3>
                     <p className="text-sm text-muted-foreground">Select any dietary restrictions.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {commonRestrictions.map(r => (
+                      {commonRestrictions.filter(r => {
+                        const isVeg = profile?.dietaryPreference === "VEG" || profile?.dietaryPreference === "VEGAN";
+                        const isEgg = profile?.dietaryPreference === "EGGETARIAN";
+                        if (isVeg && (r === "Pure Veg" || r === "No Meat (Veg Only)" || r === "No Egg")) return false;
+                        if (isEgg && (r === "Pure Veg" || r === "No Meat (Veg Only)")) return false;
+                        return true;
+                      }).map(r => (
                         <div
                           key={r}
                           onClick={() => toggleRestriction(r)}
@@ -469,7 +522,7 @@ export default function NutritionPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
               YOUR FUEL PLAN
             </h1>
-            <p className="text-sm text-muted-foreground">{mealPlanData?.date ? mealPlanData.date : ''} · Aligned with your workout schedule</p>
+            <p className="text-sm text-muted-foreground">{activePlanData?.date ? new Date(activePlanData.date).toDateString() : ''} · Aligned with your workout schedule</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={regenerating}>
@@ -477,11 +530,14 @@ export default function NutritionPage() {
               {regenerating ? "Generating..." : "Regenerate"}
             </Button>
             <Dialog open={editPrefs} onOpenChange={setEditPrefs}>
-              <DialogTrigger>
-                <Button variant="outline" size="sm">
-                  <Settings size={14} className="mr-1" /> Preferences
-                </Button>
-              </DialogTrigger>
+              <DialogTrigger
+                render={
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Preferences
+                  </Button>
+                }
+              />
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Edit Preferences</DialogTitle>
@@ -543,15 +599,43 @@ export default function NutritionPage() {
           </div>
         </div>
 
+        {/* Day Tabs */}
+        {allMealPlans.length > 1 && (
+          <Tabs 
+            value={activeTabIndex.toString()} 
+            onValueChange={(val) => {
+              const idx = parseInt(val);
+              setActiveTabIndex(idx);
+              setMeals(allMealPlans[idx].meals || []);
+            }} 
+            className="w-full"
+          >
+            <TabsList className="w-full flex overflow-x-auto rounded-none border-b-2 border-foreground bg-transparent justify-start">
+              {allMealPlans.map((plan, i) => (
+                <TabsTrigger 
+                  key={i} 
+                  value={i.toString()} 
+                  className={cn(
+                    "rounded-none border-t-2 border-l-2 border-r-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-primary/5 px-6",
+                    i === 0 && "font-bold"
+                  )}
+                >
+                  {i === 0 ? "Today" : `Day ${i + 1}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
+
         {/* Macro Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">
               <Flame size={20} className="mx-auto text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{mealPlanData?.totalCalories}</p>
+              <p className="text-2xl font-bold">{totalCalories}</p>
               <p className="text-xs text-muted-foreground">Calories</p>
               <div className="mt-2">
-                <Progress value={progressValue} />
+                <Progress value={progressCalories} className="h-2" />
                 <p className="text-xs text-muted-foreground mt-1">{completedCalories} consumed</p>
               </div>
             </CardContent>
@@ -559,22 +643,34 @@ export default function NutritionPage() {
           <Card>
             <CardContent className="pt-6 text-center">
               <Beef size={20} className="mx-auto text-red-500 mb-2" />
-              <p className="text-2xl font-bold">{mealPlanData?.totalProtein}g</p>
+              <p className="text-2xl font-bold">{totalProtein}g</p>
               <p className="text-xs text-muted-foreground">Protein</p>
+              <div className="mt-2">
+                <Progress value={progressProtein} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{completedProtein}g consumed</p>
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 text-center">
               <Wheat size={20} className="mx-auto text-amber-500 mb-2" />
-              <p className="text-2xl font-bold">{mealPlanData?.totalCarbs}g</p>
+              <p className="text-2xl font-bold">{totalCarbs}g</p>
               <p className="text-xs text-muted-foreground">Carbs</p>
+              <div className="mt-2">
+                <Progress value={progressCarbs} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{completedCarbs}g consumed</p>
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 text-center">
               <Droplets size={20} className="mx-auto text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{mealPlanData?.totalFat}g</p>
+              <p className="text-2xl font-bold">{totalFat}g</p>
               <p className="text-xs text-muted-foreground">Fat</p>
+              <div className="mt-2">
+                <Progress value={progressFat} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{completedFat}g consumed</p>
+              </div>
             </CardContent>
           </Card>
         </div>

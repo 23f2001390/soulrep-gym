@@ -56,7 +56,7 @@ export default function TrainersPage() {
 
   useEffect(() => {
     fetchTrainers();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   const handleCreateTrainer = async (e: React.FormEvent) => {
     e.preventDefault();

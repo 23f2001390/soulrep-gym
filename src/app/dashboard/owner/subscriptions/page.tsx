@@ -78,7 +78,7 @@ export default function SubscriptionsPage() {
   useEffect(() => {
     if (authLoading || !user) return;
     fetchData();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   const handleCreateInvoice = async () => {
     if (!selectedMemberId || !selectedPlan || !amount) {

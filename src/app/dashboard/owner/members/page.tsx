@@ -90,7 +90,7 @@ export default function MembersPage() {
     };
 
     load();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   const handleUpdate = async (data: Record<string, unknown>, targetMemberId?: string) => {
     const memberId = targetMemberId || actionDialog?.memberId;

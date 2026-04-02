@@ -78,7 +78,7 @@ export default function BookingPage() {
     }
     fetchData();
     return () => { isMounted = false; };
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
 
   // Compute available slots when trainer/date changes

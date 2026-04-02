@@ -20,7 +20,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
   // While loading or if no user is loaded, render nothing or a placeholder.
   if (loading || !user) {
-    return null;
+    return <div className="flex items-center justify-center min-h-screen">Loading Session...</div>;
   }
 
   return (

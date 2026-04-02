@@ -44,7 +44,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "Book Session", href: `${base}/member/booking`, icon: <CalendarCheck size={20} /> },
         { label: "Attendance", href: `${base}/member/attendance`, icon: <QrCode size={20} /> },
         { label: "Reviews", href: `${base}/member/reviews`, icon: <Star size={20} /> },
-        { label: "AI Nutritionist", href: `${base}/member/nutrition`, icon: <Apple size={20} /> },
+        { label: "Nutrition Coach", href: `${base}/member/nutrition`, icon: <Apple size={20} /> },
       ];
     default:
       return [];

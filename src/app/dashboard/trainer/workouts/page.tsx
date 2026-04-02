@@ -76,7 +76,7 @@ export default function WorkoutsPage() {
       }
     }
     fetchInitial();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   // Fetch workouts when selectedMemberId changes
   useEffect(() => {

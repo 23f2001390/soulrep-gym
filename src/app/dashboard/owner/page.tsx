@@ -70,7 +70,7 @@ export default function OwnerDashboard() {
       }
     };
     fetchOwnerData();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   if (authLoading || loadingData || !kpi) {
     return <div className="p-4">Loading...</div>;

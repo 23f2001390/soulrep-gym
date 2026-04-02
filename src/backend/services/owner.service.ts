@@ -183,7 +183,15 @@ export async function getAttendanceRecords() {
 export async function getInvoices() {
   try {
     const invoices = await prisma.invoice.findMany({
-      include: { member: { include: { user: { select: { name: true } } } } },
+      select: {
+        id: true,
+        memberId: true,
+        plan: true,
+        amount: true,
+        date: true,
+        status: true,
+        member: { include: { user: { select: { name: true } } } },
+      },
       orderBy: { date: 'desc' }
     })
     return { data: invoices.map(inv => ({

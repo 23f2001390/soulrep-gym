@@ -58,7 +58,7 @@ export default function TrainerDashboard() {
       }
     }
     fetchData();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   // Compute KPIs
   const todaySessions = sessions;

@@ -222,13 +222,15 @@ export async function getTrainerSessions(trainerId: string, date: string) {
         trainerId,
         date: { gte: startOfDay, lte: endOfDay }
       },
-      include: { 
+      select: {
+        id: true,
+        status: true,
         member: { 
           include: { 
             user: { select: { name: true } } 
           } 
         } 
-      }
+      },
     })
     
     const result = bookings.map(b => ({

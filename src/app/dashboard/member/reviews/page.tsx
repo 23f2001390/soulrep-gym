@@ -74,7 +74,7 @@ export default function ReviewsPage() {
       }
     }
     fetchData();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   // Handle trainer change in dropdown
   const handleTrainerChange = async (trainerId: string | null) => {

@@ -60,6 +60,8 @@ const initialFormData: NutritionFormData = {
   restrictions: [],
 };
 
+const NUTRITION_REQUEST_TIMEOUT_MS = 45000;
+
 export default function NutritionCoach() {
   const [profile, setProfile] = useState<any>(null);
   const [mealPlans, setMealPlans] = useState<any[]>([]);
@@ -115,12 +117,16 @@ export default function NutritionCoach() {
     setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), NUTRITION_REQUEST_TIMEOUT_MS);
       const res = await fetch("/api/member/nutrition", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(formData),
+        signal: controller.signal,
       });
+      window.clearTimeout(timeoutId);
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -131,7 +137,11 @@ export default function NutritionCoach() {
       await fetchNutrition();
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Failed to generate nutrition plan");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Nutrition request timed out. Try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to generate nutrition plan");
+      }
     } finally {
       setGenerating(false);
     }

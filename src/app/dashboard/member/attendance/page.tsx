@@ -32,7 +32,7 @@ export default function MemberAttendancePage() {
   useEffect(() => {
     if (authLoading || !user) return;
     fetchAttendance();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
     let html5QrCode: Html5Qrcode | null = null;

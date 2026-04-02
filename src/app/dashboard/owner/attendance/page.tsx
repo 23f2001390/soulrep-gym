@@ -49,7 +49,7 @@ export default function AttendancePage() {
       }
     }
     fetchData();
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   if (authLoading || loading) {
     return (

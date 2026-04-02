@@ -240,10 +240,15 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
     const bookings = await prisma.booking.findMany({
       where,
       orderBy: { date: 'asc' },
-      include: {
+      select: {
+        id: true,
+        trainerId: true,
+        date: true,
+        time: true,
+        status: true,
         trainer: {
           select: { user: { select: { name: true } } }
-        }
+        },
       }
     })
 
@@ -286,7 +291,8 @@ export async function createBooking(memberId: string, trainerId: string, date: s
       date: bookingDate,
       time,
       NOT: { status: 'CANCELLED' }
-    }
+    },
+    select: { id: true }
   })
 
   if (existing) {
@@ -303,10 +309,15 @@ export async function createBooking(memberId: string, trainerId: string, date: s
           time,
           status: 'PENDING'
         },
-        include: {
+        select: {
+          id: true,
+          trainerId: true,
+          date: true,
+          time: true,
+          status: true,
           trainer: { include: { user: { select: { name: true } } } },
           member: { include: { user: { select: { name: true } } } }
-        }
+        },
       })
 
       await tx.notification.create({
