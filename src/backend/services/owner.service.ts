@@ -211,19 +211,39 @@ export async function getInvoices() {
 
 export async function createInvoice(invoiceData: any) {
   try {
-    const { memberId, plan, amount, date, status } = invoiceData
+    const { memberId, plan, status } = invoiceData
+    const amount = invoiceData.amount ? parseFloat(invoiceData.amount.toString()) : 
+                   plan === 'MONTHLY' ? 1499 : 
+                   plan === 'QUARTERLY' ? 2999 : 4999;
+
     const invoice = await prisma.invoice.create({
-      data: { memberId, plan, amount: (invoiceData.amount ? parseFloat(invoiceData.amount) : (getPlanInfo(plan as PlanType)?.price || 0)), date: new Date(date || Date.now()), status: status || 'PENDING' }
-    })
+      data: {
+        memberId,
+        plan,
+        amount: Math.round(amount),
+        date: invoiceData.date ? new Date(invoiceData.date) : new Date(),
+        status: status || 'PENDING',
+      },
+    });
 
-
-
-
-
-
-
-
-
+    // If invoice is PAID, activate the member immediately
+    if (status === 'PAID') {
+      const sessions = plan === 'MONTHLY' ? 0 : plan === 'QUARTERLY' ? 1 : 4;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30); // All plans are monthly now
+      
+      await prisma.member.update({
+        where: { id: memberId },
+        data: {
+          plan,
+          planStatus: 'ACTIVE',
+          planExpiry: expiryDate,
+          sessionsRemaining: {
+            increment: sessions
+          }
+        }
+      });
+    }
 
     return { data: invoice }
   } catch (error) {
@@ -286,7 +306,7 @@ export async function markManualAttendance(memberId: string) {
     if (existing) return { error: 'Member already checked in today', status: 400 }
     const record = await prisma.$transaction(async (tx) => {
       const newRecord = await tx.attendanceRecord.create({ data: { memberId, date: today, checkIn: now, method: 'MANUAL' } })
-      await tx.member.update({ where: { id: memberId }, data: { attendanceCount: { increment: 1 }, sessionsRemaining: { decrement: 1 } } })
+      await tx.member.update({ where: { id: memberId }, data: { attendanceCount: { increment: 1 } } })
       return newRecord
     })
     return {

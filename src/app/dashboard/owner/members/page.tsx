@@ -229,9 +229,9 @@ export default function MembersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="monthly">Basic (Monthly)</SelectItem>
+                  <SelectItem value="quarterly">Pro (Quarterly)</SelectItem>
+                  <SelectItem value="yearly">Elite (Yearly)</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? "all")}>
@@ -289,8 +289,12 @@ export default function MembersPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize text-xs">
-                            {entry.plan}
+                          <Badge variant="outline" className={cn("capitalize text-[10px] font-bold tracking-tight", 
+                            entry.plan === 'MONTHLY' ? "border-blue-200 text-blue-600 bg-blue-50/50" : 
+                            entry.plan === 'QUARTERLY' ? "border-purple-200 text-purple-600 bg-purple-50/50" : 
+                            "border-amber-200 text-amber-600 bg-amber-50/50"
+                          )}>
+                            {entry.plan === 'MONTHLY' ? 'BASIC' : entry.plan === 'QUARTERLY' ? 'PRO' : 'ELITE'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -354,8 +358,12 @@ export default function MembersPage() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Plan</p>
-                      <Badge variant="outline" className="capitalize">
-                        {member.plan}
+                      <Badge variant="outline" className={cn("capitalize font-bold text-[10px]",
+                        member.plan === 'MONTHLY' ? "border-blue-200 text-blue-600 bg-blue-50/50" : 
+                        member.plan === 'QUARTERLY' ? "border-purple-200 text-purple-600 bg-purple-50/50" : 
+                        "border-amber-200 text-amber-600 bg-amber-50/50"
+                      )}>
+                        {member.plan === 'MONTHLY' ? 'BASIC' : member.plan === 'QUARTERLY' ? 'PRO' : 'ELITE'}
                       </Badge>
                     </div>
                     <div>
@@ -399,13 +407,15 @@ export default function MembersPage() {
                     <Button size="sm" variant="outline" onClick={() => openExtendDialog(member.id)}>
                       Extend Plan
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openReassignDialog(member.id, member.trainerId)}
-                    >
-                      Reassign Trainer
-                    </Button>
+                    {member.plan !== 'MONTHLY' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setActionDialog({ type: "reassign", memberId: member.id })}
+                      >
+                        Reassign Trainer
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </>
@@ -429,25 +439,61 @@ export default function MembersPage() {
               <div className="space-y-4 pt-4">
                 <div>
                   <Label>Current Plan</Label>
-                  <p className="mt-1 text-sm capitalize">{actionMember.plan}</p>
+                  <p className="mt-1 text-sm font-bold capitalize">
+                    {actionMember.plan === 'MONTHLY' ? 'Basic' : actionMember.plan === 'QUARTERLY' ? 'Pro' : 'Elite'}
+                  </p>
                 </div>
                 <div>
                   <Label>New Plan</Label>
-                  <Select value={newPlan} onValueChange={(value) => setNewPlan(value ?? "")}>
+                  <Select 
+                    value={newPlan} 
+                    onValueChange={(value) => {
+                      const planValue = value ?? "";
+                      setNewPlan(planValue);
+                      
+                      // Auto-update sessions based on plan choice
+                      const sessions = planValue === "MONTHLY" ? 0 : planValue === "QUARTERLY" ? 1 : 4;
+                      const updatedMembers = membersData.map(m => 
+                        m.id === actionMember.id ? { ...m, sessionsRemaining: sessions } : m
+                      );
+                      setMembersData(updatedMembers);
+                    }}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MONTHLY">Monthly - Rs. 1,800</SelectItem>
-                      <SelectItem value="QUARTERLY">Quarterly - Rs. 4,500</SelectItem>
-                      <SelectItem value="YEARLY">Yearly - Rs. 12,000</SelectItem>
+                      <SelectItem value="MONTHLY">Basic (Monthly) - ₹1,499 (0 Sessions)</SelectItem>
+                      <SelectItem value="QUARTERLY">Pro (Monthly) - ₹2,999 (1 Session)</SelectItem>
+                      <SelectItem value="YEARLY">Elite (Monthly) - ₹4,999 (4 Sessions)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="pt-2">
+                  <Label className="font-bold">Trainer Sessions Balance</Label>
+                  <Input 
+                    type="number" 
+                    className="mt-2 h-11 border-2 border-primary/20"
+                    value={actionMember.sessionsRemaining} 
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      const updatedMembers = membersData.map(m => 
+                        m.id === actionMember.id ? { ...m, sessionsRemaining: val } : m
+                      );
+                      setMembersData(updatedMembers);
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-2 italic">
+                    Note: Automatically sets to 0 (Basic), 1 (Pro), or 4 (Elite) per month.
+                  </p>
                 </div>
                 <Button
                   className="w-full"
                   disabled={submitting || !newPlan}
-                  onClick={() => handleUpdate({ plan: newPlan }, actionMember.id)}
+                  onClick={() => handleUpdate({ 
+                    plan: newPlan, 
+                    sessionsRemaining: actionMember.sessionsRemaining 
+                  }, actionMember.id)}
                 >
                   {submitting ? "Updating..." : "Update Plan"}
                 </Button>

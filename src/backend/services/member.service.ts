@@ -31,10 +31,10 @@ export async function getMemberProfile(userId: string) {
         id: user.id,
         joinDate: new Date(),
         plan: 'MONTHLY',
-        planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        planStatus: 'ACTIVE',
+        planExpiry: new Date(Date.now() - 24 * 60 * 60 * 1000), // Set expiry to yesterday
+        planStatus: 'EXPIRED',
         attendanceCount: 0,
-        sessionsRemaining: 30,
+        sessionsRemaining: 0,
         age: 18,
         gender: 'OTHER'
       }

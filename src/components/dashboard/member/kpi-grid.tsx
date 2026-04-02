@@ -12,7 +12,7 @@ export function KPIGrid({ member, daysUntilExpiry, formattedExpiry }: KPIGridPro
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard
         title="Current Plan"
-        value={member.plan.charAt(0).toUpperCase() + member.plan.slice(1).toLowerCase()}
+        value={member.plan === 'MONTHLY' ? 'Basic' : member.plan === 'QUARTERLY' ? 'Pro' : 'Elite'}
         icon={<CreditCard size={20} />}
         subtitle={`Expires ${formattedExpiry}`}
       />

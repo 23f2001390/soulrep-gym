@@ -7,15 +7,15 @@ export interface PlanConfig {
 
 export const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
   [PlanType.MONTHLY]: {
-    name: "BASIC",
+    name: "Basic",
     price: 1499,
   },
   [PlanType.QUARTERLY]: {
-    name: "PRO",
+    name: "Pro",
     price: 2999,
   },
   [PlanType.YEARLY]: {
-    name: "ELITE",
+    name: "Elite",
     price: 4999,
   },
 };

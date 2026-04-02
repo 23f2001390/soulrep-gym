@@ -23,23 +23,32 @@ const plans = [
   { 
     name: "Basic", 
     type: PlanType.MONTHLY,
-    price: PLAN_CONFIGS[PlanType.MONTHLY].price, 
+    price: 1499,
     period: "/month", 
-    features: ["Full gym access", "1 trainer session/week", "Basic app access"] 
+    features: ["Gym Floor Access", "Locker Room", "Free WiFi", "Basic Fitness Assessment"],
+    color: "bg-blue-500/10",
+    textColor: "text-blue-600",
+    accentColor: "border-blue-500/20"
   },
   { 
     name: "Pro", 
     type: PlanType.QUARTERLY,
-    price: PLAN_CONFIGS[PlanType.QUARTERLY].price, 
-    period: "/quarter", 
-    features: ["Full gym access", "3 trainer sessions/week", "App + nutrition basics", "Locker access"] 
+    price: 2999,
+    period: "/month", 
+    features: ["Everything in Basic", "All Group Classes", "1 PT Session/Month", "Basic Nutrition Guide", "InBody Scan"],
+    color: "bg-orange-500/10",
+    textColor: "text-orange-600",
+    accentColor: "border-orange-500/20"
   },
   { 
     name: "Elite", 
     type: PlanType.YEARLY,
-    price: PLAN_CONFIGS[PlanType.YEARLY].price, 
-    period: "/year", 
-    features: ["Full gym access", "Unlimited trainer sessions", "AI Nutritionist", "Priority booking", "Locker + towel service"] 
+    price: 4999,
+    period: "/month", 
+    features: ["Everything in Pro", "4 PT Sessions/Month", "AI Nutritionist", "Priority Booking", "Guest Passes"],
+    color: "bg-purple-500/10",
+    textColor: "text-purple-600",
+    accentColor: "border-purple-500/20"
   },
 ];
 
@@ -82,10 +91,14 @@ export default function SubscriptionsPage() {
       
       const distribution: { [key: string]: number } = {};
       membersArray.forEach((m: any) => {
-        distribution[m.plan] = (distribution[m.plan] || 0) + 1;
+        const planKey = m.plan as PlanType;
+        const tierName = PLAN_CONFIGS[planKey]?.name || m.plan;
+        // Normalize to title case for the chart
+        const formattedName = tierName.charAt(0).toUpperCase() + tierName.slice(1).toLowerCase();
+        distribution[formattedName] = (distribution[formattedName] || 0) + 1;
       });
       const distArray = Object.keys(distribution).map(name => ({ 
-        name: name.charAt(0).toUpperCase() + name.slice(1), 
+        name, 
         value: distribution[name] 
       }));
       setPlanDistribution(distArray);
@@ -205,10 +218,12 @@ export default function SubscriptionsPage() {
             </TabsList>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger>
-                <Button className="font-black uppercase tracking-widest gap-2 h-10 border-2 border-primary">
-                  <Plus size={16} /> Generate Invoice
-                </Button>
+              <DialogTrigger
+                render={
+                  <button className="group/button inline-flex shrink-0 items-center justify-center rounded-lg border-2 border-primary bg-primary text-primary-foreground h-10 px-4 font-black uppercase tracking-widest gap-2 hover:bg-primary/90 transition-all outline-none" />
+                }
+              >
+                <Plus size={16} /> Generate Invoice
               </DialogTrigger>
               <DialogContent className="sm:max-w-md border-4 border-foreground rounded-none">
                 <DialogHeader>
@@ -315,16 +330,49 @@ export default function SubscriptionsPage() {
                         <TableRow key={inv.id} className="hover:bg-muted/20 transition-colors">
                           <TableCell className="font-mono text-[10px] font-bold">#{inv.id.slice(-6).toUpperCase()}</TableCell>
                           <TableCell className="text-sm font-black tracking-tight">{inv.memberName}</TableCell>
-                          <TableCell><Badge variant="outline" className="capitalize text-[9px] font-black">{inv.plan}</Badge></TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[9px] font-black uppercase">
+                              {inv.plan === 'MONTHLY' ? 'Basic' : inv.plan === 'QUARTERLY' ? 'Pro' : 'Elite'}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-sm font-black">₹{inv.amount.toLocaleString()}</TableCell>
                           <TableCell className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">{inv.date}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn('capitalize text-[10px] font-black tracking-tighter px-2 h-5 rounded-none border-2', statusColor(inv.status))}>{inv.status.toLowerCase()}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors">
-                              <Download size={14} />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {inv.status === 'PENDING' && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 hover:bg-green-500/10 hover:text-green-600 transition-colors"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/owner/invoices/${inv.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ status: 'PAID' })
+                                      });
+                                      if (res.ok) fetchData();
+                                      else alert("Failed to update status");
+                                    } catch (err) {
+                                      alert("Error updating status");
+                                    }
+                                  }}
+                                >
+                                  <CheckCircle2 size={14} />
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                                onClick={() => window.open(`/api/member/invoices/${inv.id}`, '_blank')}
+                              >
+                                <Download size={14} />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
