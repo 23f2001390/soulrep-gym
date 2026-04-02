@@ -204,23 +204,12 @@ export async function getInvoices() {
   }
 }
 
-import { inngest } from '../../lib/inngest'
-
 export async function createInvoice(invoiceData: any) {
   try {
     const { memberId, plan, amount, date, status } = invoiceData
     const invoice = await prisma.invoice.create({
       data: { memberId, plan, amount: parseFloat(amount), date: new Date(date || Date.now()), status: status || 'PENDING' }
     })
-
-    // Trigger background processing
-    await inngest.send({
-      name: "app/invoice.created",
-      data: {
-        invoiceId: invoice.id,
-        memberId: invoice.memberId,
-      },
-    });
 
     return { data: invoice }
   } catch (error) {
