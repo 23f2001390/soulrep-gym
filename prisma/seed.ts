@@ -1,27 +1,27 @@
-import { PrismaClient, Role, PlanType, PlanStatus, Gender, Availability, Method, InvoiceStatus, BookingStatus, FitnessGoal, ActivityLevel, DietaryPreference, MealType } from '@prisma/client'
+import { PrismaClient, Role, Availability } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Clearing existing data...')
-  await prisma.$transaction([
-    prisma.meal.deleteMany(),
-    prisma.mealPlan.deleteMany(),
-    prisma.nutritionProfile.deleteMany(),
-    prisma.booking.deleteMany(),
-    prisma.review.deleteMany(),
-    prisma.sessionLog.deleteMany(),
-    prisma.exercise.deleteMany(),
-    prisma.workoutPlan.deleteMany(),
-    prisma.invoice.deleteMany(),
-    prisma.attendanceRecord.deleteMany(),
-    prisma.member.deleteMany(),
-    prisma.trainer.deleteMany(),
-    prisma.user.deleteMany(),
-  ])
+  console.log('Clearing existing data (step-by-step)...')
+  
+  // Deleting in order to respect constraints without a single giant transaction
+  await prisma.meal.deleteMany();
+  await prisma.mealPlan.deleteMany();
+  await prisma.nutritionProfile.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.sessionLog.deleteMany();
+  await prisma.exercise.deleteMany();
+  await prisma.workoutPlan.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.member.deleteMany();
+  await prisma.trainer.deleteMany();
+  await prisma.user.deleteMany();
 
-  console.log('Creating essential accounts...')
+  console.log('Creating production staff accounts...')
   
   // Create Owner
   const ownerPassword = await bcrypt.hash('owner123', 10)
@@ -30,43 +30,43 @@ async function main() {
       email: 'owner@soulrep.com',
       password: ownerPassword,
       role: Role.OWNER,
-      name: 'SoulRep Owner',
+      name: 'Gym Owner',
     }
   })
 
-  // Create Trainers
+  // Create Trainers (Trainer 1, Trainer 2, etc.)
   const trainerData = [
-    { id: 't1', name: 'Chris Evans', email: 'chris@soulrep.com', phone: '+91 98765 43210', specialization: 'Strength & Conditioning', rating: 5.0, reviewCount: 0, memberCount: 0, availability: Availability.AVAILABLE },
-    { id: 't2', name: 'Diana Prince', email: 'diana@soulrep.com', phone: '+91 98765 43211', specialization: 'Yoga & Flexibility', rating: 5.0, reviewCount: 0, memberCount: 0, availability: Availability.AVAILABLE },
-    { id: 't3', name: 'Marcus Aurelius', email: 'marcus@soulrep.com', phone: '+91 98765 43212', specialization: 'HIIT & Cardio', rating: 5.0, reviewCount: 0, memberCount: 0, availability: Availability.AVAILABLE },
-    { id: 't4', name: 'Natasha Romanoff', email: 'natasha@soulrep.com', phone: '+91 98765 43213', specialization: 'CrossFit', rating: 5.0, reviewCount: 0, memberCount: 0, availability: Availability.AVAILABLE },
+    { id: 't1', name: 'Trainer 1', email: 'trainer1@soulrep.com', phone: '+91 00000 00001', specialization: 'Strength & Conditioning' },
+    { id: 't2', name: 'Trainer 2', email: 'trainer2@soulrep.com', phone: '+91 00000 00002', specialization: 'Yoga & Flexibility' },
+    { id: 't3', name: 'Trainer 3', email: 'trainer3@soulrep.com', phone: '+91 00000 00003', specialization: 'HIIT & Cardio' },
+    { id: 't4', name: 'Trainer 4', email: 'trainer4@soulrep.com', phone: '+91 00000 00004', specialization: 'CrossFit' },
   ]
 
+  const trainerPassword = await bcrypt.hash('trainer123', 10)
   for (const t of trainerData) {
-    const pw = await bcrypt.hash('trainer123', 10)
     await prisma.user.create({
       data: {
         id: t.id,
         email: t.email,
-        password: pw,
+        password: trainerPassword,
         role: Role.TRAINER,
         name: t.name,
         phone: t.phone,
         Trainer: {
           create: {
             specialization: t.specialization,
-            rating: t.rating,
-            reviewCount: t.reviewCount,
-            memberCount: t.memberCount,
-            availability: t.availability,
-            schedule: {}, // Empty schedule for production start
+            rating: 5.0,
+            reviewCount: 0,
+            memberCount: 0,
+            availability: Availability.AVAILABLE,
+            schedule: {}, 
           }
         }
       }
     })
   }
 
-  console.log('Database cleared of mock users. Owner and 4 Trainers created successfully.')
+  console.log('Production database ready. Owner and 4 Trainers created.')
 }
 
 main()
