@@ -6,13 +6,18 @@ import { hash } from 'bcryptjs'
  * Service to handle trainer-related logic.
  */
 export async function getTrainerMemberWorkoutPlans(trainerId: string, memberId: string) {
-  // Verify that the member belongs to this trainer
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: { trainerId: true }
+  // Verify that the member belongs to this trainer or has a booking with this trainer
+  const member = await prisma.member.findFirst({
+    where: { 
+      id: memberId,
+      OR: [
+        { trainerId },
+        { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } }
+      ]
+    }
   })
   
-  if (!member || member.trainerId !== trainerId) {
+  if (!member) {
     return { error: 'Member not found', status: 404 }
   }
 
