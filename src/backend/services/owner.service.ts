@@ -1,13 +1,16 @@
 import { prisma } from '../shared/prisma'
-import { Role, PlanStatus } from '@prisma/client'
+import { Role, PlanStatus, PlanType } from '@prisma/client'
+import { getPlanInfo } from '@/lib/plans'
+
 
 function formatAttendanceTime(value: Date | null): string | null {
   if (!value) return null
 
-  return value.toLocaleTimeString([], {
+  return value.toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: 'Asia/Kolkata',
   })
 }
 
@@ -210,7 +213,7 @@ export async function createInvoice(invoiceData: any) {
   try {
     const { memberId, plan, amount, date, status } = invoiceData
     const invoice = await prisma.invoice.create({
-      data: { memberId, plan, amount: parseFloat(amount), date: new Date(date || Date.now()), status: status || 'PENDING' }
+      data: { memberId, plan, amount: (invoiceData.amount ? parseFloat(invoiceData.amount) : (getPlanInfo(plan as PlanType)?.price || 0)), date: new Date(date || Date.now()), status: status || 'PENDING' }
     })
 
 

@@ -18,7 +18,7 @@ export function RecentAttendanceCard({ recentAttendance }: RecentAttendanceCardP
               <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                 <div>
                   <p className="text-sm font-medium">{a.date}</p>
-                  <p className="text-xs text-muted-foreground">{a.checkIn} — {a.checkOut || "Still in"}</p>
+                  <p className="text-xs text-muted-foreground">{a.checkIn} CHECK-IN</p>
                 </div>
                 <Badge variant="outline" className="text-xs">{a.method.toUpperCase()}</Badge>
               </div>

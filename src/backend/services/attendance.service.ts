@@ -3,10 +3,11 @@ import { prisma } from '../shared/prisma'
 export function formatAttendanceTime(value: Date | null): string | null {
   if (!value) return null
 
-  return value.toLocaleTimeString([], {
+  return value.toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: 'Asia/Kolkata',
   })
 }
 

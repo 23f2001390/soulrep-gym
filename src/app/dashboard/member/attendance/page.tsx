@@ -127,7 +127,7 @@ export default function MemberAttendancePage() {
                     <CheckCircle2 size={48} className="text-green-500" />
                   </div>
                   <h3 className="text-2xl font-black text-green-600 mb-2 uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Checked In!</h3>
-                  <p className="text-sm font-bold text-muted-foreground uppercase">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} EXCELENT WORK.</p>
+                  <p className="text-sm font-bold text-muted-foreground uppercase">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} EXCELLENT WORK.</p>
                   <Button variant="outline" className="mt-8 font-black border-2" onClick={() => setStatus("idle")}>DONE</Button>
                 </div>
               ) : status === "error" ? (
@@ -193,7 +193,7 @@ export default function MemberAttendancePage() {
                   </div>
                 )) : (
                   <div className="p-12 text-center">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No attendence history yet.</p>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No attendance history yet.</p>
                   </div>
                 )}
               </div>

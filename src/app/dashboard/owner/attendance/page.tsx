@@ -248,8 +248,7 @@ export default function AttendancePage() {
                   <TableRow>
                     <TableHead className="font-black uppercase tracking-tighter text-xs">Member</TableHead>
                     <TableHead className="font-black uppercase tracking-tighter text-xs">Date</TableHead>
-                    <TableHead className="font-black uppercase tracking-tighter text-xs">Check In</TableHead>
-                    <TableHead className="font-black uppercase tracking-tighter text-xs">Check Out</TableHead>
+                    <TableHead className="font-black uppercase tracking-tighter text-xs text-right">Check In</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,12 +256,11 @@ export default function AttendancePage() {
                     <TableRow key={a.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-bold text-sm tracking-tight">{a.memberName}</TableCell>
                       <TableCell className="text-xs font-medium">{a.date}</TableCell>
-                      <TableCell className="text-xs font-bold text-primary">{a.checkIn}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{a.checkOut || '—'}</TableCell>
+                      <TableCell className="text-xs font-bold text-primary text-right">{a.checkIn}</TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-12 text-xs font-bold uppercase tracking-widest">
+                      <TableCell colSpan={3} className="text-center text-muted-foreground py-12 text-xs font-bold uppercase tracking-widest">
                         No records found
                       </TableCell>
                     </TableRow>
