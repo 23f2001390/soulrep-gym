@@ -1,104 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoulRep Gym — Management Software
 
-## Getting Started
+A professional-grade Gym Management System built with **Next.js 15**, **Prisma**, and **PostgreSQL (Neon)**. Designed with a focus on modular backend architecture, type-safety, and AI-driven features.
 
-First, install the packages:
+## 🏗️ Technical Architecture
 
+As a backend-focused project, the system follows a **Service-Oriented** architecture to ensure scalability, maintainability, and clear separation of concerns.
+
+### 1. Domain-Based Service Layer
+The business logic is decoupled from the API routes and isolated into dedicated domain services located in `src/backend/services/`:
+*   **Nutrition Service**: Orchestrates AI-powered diet plan generation and macro calculations.
+*   **Attendance Service**: Handles QR-based check-ins and session tracking.
+*   **Booking Service**: Manages trainer schedules and PT session reservations.
+*   **Review Service**: Processes trainer feedback and rating aggregation.
+
+### 2. Thin API Wrappers
+Next.js API routes (`src/app/api/`) act as thin transport layers. They are responsible only for:
+*   Route-level authentication via custom middleware.
+*   Request validation and payload parsing.
+*   Delegating execution to the appropriate domain service.
+
+### 3. Database & Type Safety
+*   **ORM**: Uses **Prisma** for type-safe database queries and automated migrations.
+*   **Database**: Hosted on **Neon (PostgreSQL)**, utilizing serverless compute scaling.
+*   **Schema**: A normalized relational schema documented via **DBML** (see `docs/database_schema.dbml`).
+
+## 🤖 AI Features
+Integrated with **Google Gemini Pro** to provide a personalized "AI Nutritionist" experience for gym members. The system takes into account:
+*   Fitness goals (Muscle Gain, Fat Loss, etc.).
+*   Activity levels and dietary preferences (Veg, Vegan, Non-Veg).
+*   Automatic macro-target calculation based on physiological data.
+
+## 📂 Project Structure
+To maintain a "Clean Code" environment, all non-core assets are organized follows:
+*   `/docs/`: Contains the database schema (DBML) and system diagrams (PlantUML).
+*   `/scripts/`: Administrative utility scripts for data maintenance and migration.
+*   `/src/backend/`: The heart of the application logic, containing services, shared Prisma clients, and server-side utilities.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Environment Setup
+Create a `.env.local` file in the root directory:
+```env
+DATABASE_URL="your_postgresql_url"
+NEXTAUTH_SECRET="your_secret"
+SOULREP_GEMINI_API_KEY="your_gemini_key"
+```
+
+### 2. Install Dependencies
 ```bash
-npm install
-# or
-yarn install
-# or 
 pnpm install
-# or 
-bun install
 ```
 
-Then, run the development server:
-
+### 3. Database Initialization
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx prisma generate
+npx prisma db push
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Backend Setup
-
-This project includes a complete backend implemented with [Prisma](https://www.prisma.io/) and **Neon**, a serverless Postgres database. The backend exposes RESTful API routes under `/api` that power the dashboard pages. Authentication is handled via [JSON Web Tokens (JWTs)](https://jwt.io/) with passwords hashed using bcrypt. Bcrypt incorporates a salt and an adaptive cost factor, making it resistant to rainbow table and brute‐force attacks【171571983526134†L146-L151】.
-
-### Required environment variables
-
-Before running the backend you must create a `.env` file at the root of the `soulrep` directory. An example template is provided in `.env.example`. At minimum you should configure the following variables:
-
-- **DATABASE_URL** – a Postgres connection string pointing at your Neon database. You can obtain this from the Neon dashboard. For example: `postgresql://user:password@ep-silent-firefly-123456.us-east-1.aws.neon.tech/neondb?sslmode=require`. Neon is a serverless Postgres platform that decouples storage and compute so that compute can scale up and down automatically【51572528687794†screenshot】. This separation also enables branching workflows similar to Git, which is useful for development environments.
-- **JWT_SECRET** – a long, random secret used to sign and verify JWT tokens. Never commit this secret to version control.
-
-You can copy the example file and fill in the values:
-
-```bash
-cp .env.example .env
-# then edit .env and set DATABASE_URL and JWT_SECRET
-```
-
-### Database migrations
-
-The Prisma schema lives at `prisma/schema.prisma`. After configuring your `DATABASE_URL`, run the following commands from within the `soulrep` directory using pnpm (or your preferred package manager) to create and migrate the database tables:
-
-```bash
-pnpm prisma generate        # generate the Prisma client
-pnpm prisma migrate deploy  # apply pending migrations in production
-pnpm prisma migrate dev --name init  # or use this in development to create migrations
-```
-
-### Seeding the database
-
-To populate the database with sample data that matches the frontend’s mock data, run the seed script:
-
-```bash
-pnpm prisma db seed
-```
-
-The seed script creates an owner account (`owner@soulrep.com` / `owner123`), multiple trainers, members, attendance records, invoices, workout plans with exercises, session logs, reviews, bookings, a nutrition profile and a sample meal plan. See `prisma/seed.ts` for details.
-
-### Running the development server
-
-Once your database is set up and seeded, start the Next.js development server:
-
+### 4. Run Development Server
 ```bash
 pnpm dev
 ```
 
-The frontend will communicate with the backend using the API routes under `/api`. When logging in or signing up, the server returns a JWT token. Include this token in the `Authorization` header as `Bearer <token>` for subsequent requests.
+---
 
-### Authentication notes
-
-Passwords are hashed with bcrypt before being stored. Bcrypt’s use of salting and an adjustable cost factor means that hashed passwords remain secure over time as the hashing workload can be increased to match improvements in hardware【171571983526134†L146-L151】. Tokens are signed with a secret and include the user’s id and role; they expire after seven days by default.
-
-### Deployment
-
-When deploying to Vercel or another hosting provider, set the same environment variables (DATABASE_URL and JWT_SECRET) in your deployment settings. Because Neon is serverless, you pay only for the compute you use and it scales automatically, making it a good fit for serverless deployments【51572528687794†screenshot】.
+## 🛠️ Built With
+*   **Framework**: [Next.js 15 (App Router)](https://nextjs.org/)
+*   **Database**: [PostgreSQL](https://www.postgresql.org/) via [Neon](https://neon.tech/)
+*   **ORM**: [Prisma](https://www.prisma.io/)
+*   **AI**: [Google Gemini SDK](https://ai.google.dev/)
+*   **Styling**: Vanilla CSS with modern Design Tokens
