@@ -96,7 +96,7 @@ export default function OwnerDashboard() {
           />
           <KPICard
             title="Revenue"
-            value={`₹${(kpi.revenue / 1000).toFixed(0)}K`}
+            value={kpi.revenue < 10000 ? `₹${kpi.revenue.toLocaleString()}` : `₹${(kpi.revenue / 1000).toFixed(1)}K`}
             icon={<DollarSign size={20} />}
             trend={{ value: 0, positive: true }}
           />

@@ -16,10 +16,31 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { Download, CreditCard, Plus, FileText, Send, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { PLAN_CONFIGS } from "@/lib/plans";
+import { PlanType } from "@prisma/client";
+
 const plans = [
-  { name: "Monthly", price: 1800, period: "/month", features: ["Full gym access", "1 trainer session/week", "Basic app access"] },
-  { name: "Quarterly", price: 4500, period: "/quarter", features: ["Full gym access", "3 trainer sessions/week", "App + nutrition basics", "Locker access"] },
-  { name: "Yearly", price: 12000, period: "/year", features: ["Full gym access", "Unlimited trainer sessions", "AI Nutritionist", "Priority booking", "Locker + towel service"] },
+  { 
+    name: "Basic", 
+    type: PlanType.MONTHLY,
+    price: PLAN_CONFIGS[PlanType.MONTHLY].price, 
+    period: "/month", 
+    features: ["Full gym access", "1 trainer session/week", "Basic app access"] 
+  },
+  { 
+    name: "Pro", 
+    type: PlanType.QUARTERLY,
+    price: PLAN_CONFIGS[PlanType.QUARTERLY].price, 
+    period: "/quarter", 
+    features: ["Full gym access", "3 trainer sessions/week", "App + nutrition basics", "Locker access"] 
+  },
+  { 
+    name: "Elite", 
+    type: PlanType.YEARLY,
+    price: PLAN_CONFIGS[PlanType.YEARLY].price, 
+    period: "/year", 
+    features: ["Full gym access", "Unlimited trainer sessions", "AI Nutritionist", "Priority booking", "Locker + towel service"] 
+  },
 ];
 
 export default function SubscriptionsPage() {
@@ -216,7 +237,7 @@ export default function SubscriptionsPage() {
                       <Select value={selectedPlan} onValueChange={(v) => {
                         const val = v ?? "";
                         setSelectedPlan(val);
-                        const p = plans.find(p => p.name.toUpperCase() === val.toUpperCase());
+                        const p = plans.find(p => p.name.toLowerCase() === val.toLowerCase() || p.type === val);
                         if (p) setAmount(p.price.toString());
                       }}>
                         <SelectTrigger className="h-12 border-2 border-muted focus:border-primary font-bold">

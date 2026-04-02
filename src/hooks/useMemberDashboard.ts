@@ -30,6 +30,12 @@ export function useMemberDashboard() {
         return;
       }
 
+      if (pRes.status === 404) {
+        setLoadingData(false);
+        setError("Member profile not found. Your account might have been reset.");
+        return;
+      }
+
       if (!pRes.ok) {
         const profErr = await pRes.json().catch(() => null);
         throw new Error(profErr?.error || "Unable to load member profile");
