@@ -190,7 +190,7 @@ export async function getTrainerProfile(trainerId: string) {
 export async function getTrainerMembers(trainerId: string) {
   try {
     const members = await prisma.member.findMany({
-      where: { trainerId },
+      where: { OR: [ { trainerId }, { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } } ] },
       include: { user: { select: { name: true, email: true } } }
     })
     
@@ -252,7 +252,7 @@ export async function getTrainerSessions(trainerId: string, date: string) {
 export async function getTrainerReviews(trainerId: string) {
   try {
     const reviews = await prisma.review.findMany({
-      where: { trainerId },
+      where: { OR: [ { trainerId }, { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } } ] },
       orderBy: { date: 'desc' },
       select: {
         id: true,
