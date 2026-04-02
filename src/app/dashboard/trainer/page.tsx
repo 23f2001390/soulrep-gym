@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 // import { sessionLogs, getMembersForTrainer, trainers } from "@/lib/mock-data";
 import { KPICard } from "@/components/shared/kpi-card";
-import { CalendarCheck, Users, Clock, CheckCircle2 } from "lucide-react";
+import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -137,10 +137,29 @@ export default function TrainerDashboard() {
                           </p>
                         </div>
                       </div>
-                      <Badge variant={session.completed ? 'secondary' : 'default'} className="text-[10px]">
-                        {session.completed ? 'Completed' : 'Planned'}
+                      <Badge variant={session.completed ? 'default' : 'secondary'} className={cn(
+                        "text-[10px]",
+                        !session.completed && "bg-yellow-500/10 text-yellow-600 border-yellow-200"
+                      )}>
+                        {session.completed ? 'Confirmed' : 'Pending'}
                       </Badge>
                     </div>
+                    {session.workout ? (
+                      <div className="mt-3 pt-3 border-t border-dashed">
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1 tracking-wider">Today&apos;s Focus: {session.workout.day}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {session.workout.exercises.map((ex: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[10px]">
+                              <Dumbbell size={10} className="text-primary" />
+                              <span className="font-medium">{ex.name}</span>
+                              <span className="text-muted-foreground opacity-70">({ex.sets}x{ex.reps})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground italic mt-2">No workout plan assigned for {new Date(session.date).toLocaleDateString('en-IN', { weekday: 'long' })}</p>
+                    )}
                   </div>
                 )) : (
                   <p className="text-sm text-muted-foreground text-center py-8">No sessions found.</p>

@@ -222,6 +222,10 @@ export async function getTrainerSessions(trainerId: string, date: string) {
     const endOfDay = new Date(date)
     endOfDay.setHours(23, 59, 59, 999)
     
+    // Get day name
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const dayName = days[startOfDay.getDay()]
+
     const bookings = await prisma.booking.findMany({
       where: {
         trainerId,
@@ -230,22 +234,40 @@ export async function getTrainerSessions(trainerId: string, date: string) {
       select: {
         id: true,
         status: true,
+        time: true,
+        date: true,
         member: { 
           include: { 
-            user: { select: { name: true } } 
+            user: { select: { name: true } },
+            WorkoutPlan: {
+              where: { day: dayName },
+              include: { exercises: true }
+            }
           } 
         } 
       },
     })
     
-    const result = bookings.map(b => ({
-      id: b.id,
-      memberName: b.member?.user?.name || 'Unknown Member',
-      duration: 60,
-      completed: b.status === 'CONFIRMED',
-      exercises: [],
-      notes: ''
-    }))
+    const result = bookings.map(b => {
+      const workoutPlan = b.member.WorkoutPlan[0] || null
+      return {
+        id: b.id,
+        memberName: b.member?.user?.name || 'Unknown Member',
+        duration: 60,
+        completed: b.status === 'CONFIRMED',
+        time: b.time,
+        date: b.date,
+        workout: workoutPlan ? {
+          day: workoutPlan.day,
+          exercises: workoutPlan.exercises.map(e => ({
+            name: e.name,
+            sets: e.sets,
+            reps: e.reps
+          }))
+        } : null,
+        notes: ''
+      }
+    })
     
     return { data: result }
   } catch (error) {
@@ -327,3 +349,66 @@ export async function createTrainer(data: { name: string, email: string, special
   }
 }
 
+export async function createWorkoutPlan(trainerId: string, memberId: string, data: { day: string, notes?: string, exercises: any[] }) {
+  try {
+    // Verify member belongs to/has booking with trainer
+    const member = await prisma.member.findFirst({
+      where: { 
+        id: memberId,
+        OR: [
+          { trainerId },
+          { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } }
+        ]
+      }
+    })
+    
+    if (!member) {
+      return { error: 'Member not found or not authorized', status: 404 }
+    }
+
+    const plan = await prisma.workoutPlan.create({
+      data: {
+        trainerId,
+        memberId,
+        day: data.day,
+        notes: data.notes,
+        exercises: {
+          create: data.exercises.map(ex => ({
+            name: ex.name,
+            sets: parseInt(ex.sets),
+            reps: ex.reps,
+            rest: ex.rest,
+            notes: ex.notes
+          }))
+        }
+      },
+      include: { exercises: true }
+    })
+
+    return { data: plan }
+  } catch (error) {
+    console.error('Error in createWorkoutPlan:', error)
+    return { error: 'Failed to create workout plan', status: 500 }
+  }
+}
+
+export async function deleteWorkoutPlan(trainerId: string, planId: string) {
+  try {
+    const plan = await prisma.workoutPlan.findUnique({
+      where: { id: planId }
+    })
+
+    if (!plan || plan.trainerId !== trainerId) {
+      return { error: 'Plan not found or not authorized', status: 404 }
+    }
+
+    await prisma.workoutPlan.delete({
+      where: { id: planId }
+    })
+
+    return { data: { success: true } }
+  } catch (error) {
+    console.error('Error in deleteWorkoutPlan:', error)
+    return { error: 'Failed to delete workout plan', status: 500 }
+  }
+}

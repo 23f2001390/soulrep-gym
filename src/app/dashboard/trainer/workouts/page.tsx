@@ -11,7 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Star, User, Dumbbell, ClipboardList, MessageSquare } from "lucide-react";
+import { Star, User, Dumbbell, ClipboardList, MessageSquare, Plus, Trash2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
@@ -24,8 +26,16 @@ export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [noteDialog, setNoteDialog] = useState(false);
+
+  const [isAddingPlan, setIsAddingPlan] = useState(false);
+  const [newPlan, setNewPlan] = useState({
+    day: 'Monday',
+    notes: '',
+    exercises: [{ name: '', sets: '3', reps: '10', rest: '60s' }]
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Fetch initial data: trainer profile, members, sessions, reviews
   useEffect(() => {
@@ -78,29 +88,69 @@ export default function WorkoutsPage() {
     fetchInitial();
   }, [authLoading, user?.id]);
 
-  // Fetch workouts when selectedMemberId changes
-  useEffect(() => {
-    async function fetchWorkouts() {
-      if (authLoading || !user || !selectedMemberId) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch(`/api/trainer/members/${selectedMemberId}/workout-plans`, { credentials: 'include' });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to load workout plans');
-        }
-        const data = await res.json();
-        setWorkouts(data);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Failed to load workout plans');
-      } finally {
-        setLoading(false);
+
+  async function fetchWorkouts() {
+    if (authLoading || !user || !selectedMemberId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`/api/trainer/members/${selectedMemberId}/workout-plans`, { credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to load workout plans');
       }
+      const data = await res.json();
+      setWorkouts(data);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to load workout plans');
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchWorkouts();
   }, [authLoading, user, selectedMemberId]);
+
+  const handleAddPlan = async () => {
+    if (!selectedMemberId) return;
+    try {
+      setSubmitting(true);
+      const res = await fetch(`/api/trainer/members/${selectedMemberId}/workout-plans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPlan),
+      });
+      if (!res.ok) throw new Error('Failed to create plan');
+      await fetchWorkouts();
+      setIsAddingPlan(false);
+      setNewPlan({
+        day: 'Monday',
+        notes: '',
+        exercises: [{ name: '', sets: '3', reps: '10', rest: '60s' }]
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add workout plan');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    if (!confirm('Are you sure you want to delete this workout plan?')) return;
+    try {
+      const res = await fetch(`/api/trainer/members/${selectedMemberId}/workout-plans/${planId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete plan');
+      await fetchWorkouts();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete plan');
+    }
+  };
 
   // Derived values
   const selectedMember = members.find(m => m.id === selectedMemberId);
@@ -183,6 +233,7 @@ export default function WorkoutsPage() {
                       </Badge>
                     )}
                   </div>
+
                   <TabsList className="mt-4">
                     <TabsTrigger value="workouts">Workout Plans</TabsTrigger>
                     <TabsTrigger value="sessions">Session Log</TabsTrigger>
@@ -191,14 +242,158 @@ export default function WorkoutsPage() {
                 </CardHeader>
                 <CardContent>
                   <TabsContent value="workouts" className="mt-0 space-y-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm text-muted-foreground">Manage weekly routines</p>
+                      <Dialog open={isAddingPlan} onOpenChange={setIsAddingPlan}>
+                        <DialogTrigger 
+                          render={
+                            <Button size="sm" className="gap-2">
+                              <Plus size={14} /> Add Plan
+                            </Button>
+                          }
+                        />
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Create Workout Plan</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-6 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Day of Week</Label>
+                                <select 
+                                  className="w-full p-2 border rounded-md bg-background"
+                                  value={newPlan.day}
+                                  onChange={(e) => setNewPlan({...newPlan, day: e.target.value})}
+                                >
+                                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Notes (Optional)</Label>
+                                <Input 
+                                  placeholder="e.g. Focus on form" 
+                                  value={newPlan.notes}
+                                  onChange={(e) => setNewPlan({...newPlan, notes: e.target.value})}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-base font-bold">Exercises</Label>
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setNewPlan({
+                                    ...newPlan, 
+                                    exercises: [...newPlan.exercises, { name: '', sets: '3', reps: '10', rest: '60s' }]
+                                  })}
+                                >
+                                  + Add Exercise
+                                </Button>
+                              </div>
+                              
+                              {newPlan.exercises.map((ex, idx) => (
+                                <div key={idx} className="p-4 border rounded-lg space-y-3 relative bg-muted/30">
+                                  {idx > 0 && (
+                                    <button 
+                                      className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
+                                      onClick={() => {
+                                        const updated = [...newPlan.exercises];
+                                        updated.splice(idx, 1);
+                                        setNewPlan({...newPlan, exercises: updated});
+                                      }}
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  )}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Exercise Name</Label>
+                                      <Input 
+                                        placeholder="e.g. Bench Press" 
+                                        value={ex.name}
+                                        onChange={(e) => {
+                                          const updated = [...newPlan.exercises];
+                                          updated[idx].name = e.target.value;
+                                          setNewPlan({...newPlan, exercises: updated});
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Sets</Label>
+                                        <Input 
+                                          type="number"
+                                          value={ex.sets}
+                                          onChange={(e) => {
+                                            const updated = [...newPlan.exercises];
+                                            updated[idx].sets = e.target.value;
+                                            setNewPlan({...newPlan, exercises: updated});
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Reps</Label>
+                                        <Input 
+                                          value={ex.reps}
+                                          onChange={(e) => {
+                                            const updated = [...newPlan.exercises];
+                                            updated[idx].reps = e.target.value;
+                                            setNewPlan({...newPlan, exercises: updated});
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Rest</Label>
+                                        <Input 
+                                          value={ex.rest}
+                                          onChange={(e) => {
+                                            const updated = [...newPlan.exercises];
+                                            updated[idx].rest = e.target.value;
+                                            setNewPlan({...newPlan, exercises: updated});
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <Button 
+                              className="w-full" 
+                              onClick={handleAddPlan}
+                              disabled={submitting || newPlan.exercises.some(e => !e.name)}
+                            >
+                              {submitting ? 'Creating...' : 'Create Workout Plan'}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     {memberWorkouts.length > 0 ? memberWorkouts.map((wp: any) => (
                       <div key={wp.id} className={cn(
                         "border rounded-lg p-4",
                         "border-2 border-foreground rounded-none"
                       )}>
+
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-semibold text-sm" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>{wp.day}</h3>
-                          <Badge variant="outline" className="text-xs">{wp.exercises.length} exercises</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">{wp.exercises.length} exercises</Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeletePlan(wp.id)}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </div>
                         <Table>
                           <TableHeader>
