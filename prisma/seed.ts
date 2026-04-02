@@ -59,7 +59,14 @@ async function main() {
             reviewCount: 0,
             memberCount: 0,
             availability: Availability.AVAILABLE,
-            schedule: {}, 
+            schedule: {
+              'Monday': [{ start: '09:00', end: '18:00', type: 'available' }],
+              'Tuesday': [{ start: '09:00', end: '18:00', type: 'available' }],
+              'Wednesday': [{ start: '09:00', end: '18:00', type: 'available' }],
+              'Thursday': [{ start: '09:00', end: '18:00', type: 'available' }],
+              'Friday': [{ start: '09:00', end: '18:00', type: 'available' }],
+              'Saturday': [{ start: '09:00', end: '13:00', type: 'available' }]
+            }, 
           }
         }
       }

@@ -92,7 +92,12 @@ export default function BookingPage() {
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const dayName = days[date.getDay()];
       const schedule = trainer.schedule as any;
-      const daySlots = schedule && schedule[dayName] ? schedule[dayName] : [];
+      
+      // Fallback for empty schedules (Standard Gym Hours: 09:00 - 18:00)
+      const defaultSlots = [{ start: '09:00', end: '18:00', type: 'available' }];
+      const daySlots = schedule && schedule[dayName] && schedule[dayName].length > 0 
+        ? schedule[dayName] 
+        : (dayName !== 'Sunday' ? defaultSlots : []);
       
       const allPossibleTimeSlots: string[] = [];
       
