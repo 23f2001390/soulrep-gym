@@ -204,12 +204,23 @@ export async function getInvoices() {
   }
 }
 
+
+
 export async function createInvoice(invoiceData: any) {
   try {
     const { memberId, plan, amount, date, status } = invoiceData
     const invoice = await prisma.invoice.create({
       data: { memberId, plan, amount: parseFloat(amount), date: new Date(date || Date.now()), status: status || 'PENDING' }
     })
+
+
+
+
+
+
+
+
+
 
     return { data: invoice }
   } catch (error) {
