@@ -30,6 +30,7 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [booked, setBooked] = useState(false);
+  const [busySlots, setBusySlots] = useState<any[]>([]);
 
   const selectedDate = date ? format(date, "yyyy-MM-dd") : "";
 
@@ -79,6 +80,26 @@ export default function BookingPage() {
     fetchData();
     return () => { isMounted = false; };
   }, [authLoading, user?.id]);
+
+  // Fetch all busy slots for the selected trainer
+  useEffect(() => {
+    async function fetchBusySlots() {
+      if (!selectedTrainer) {
+        setBusySlots([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/member/bookings?trainerId=${selectedTrainer}&upcoming=true`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setBusySlots(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch busy slots', err);
+      }
+    }
+    fetchBusySlots();
+  }, [selectedTrainer]);
 
 
   // Compute available slots when trainer/date changes
@@ -149,7 +170,10 @@ export default function BookingPage() {
 
   // Determine if a given time slot is already booked for the selected trainer/date
   const isSlotBooked = (time: string) => {
-    return bookingsData.some((b: any) => {
+    // Check both user's local bookings and the trainer's busy slots
+    const allRelevantBookings = [...(busySlots || [])];
+    
+    return allRelevantBookings.some((b: any) => {
       // Extract date portion in YYYY-MM-DD regardless of Date or string input
       let bookingDateStr: string;
       if (typeof b.date === 'string') {
@@ -159,14 +183,14 @@ export default function BookingPage() {
         // For Date objects, convert to ISO string
         bookingDateStr = new Date(b.date).toISOString().slice(0, 10);
       }
-      return b.trainerId === selectedTrainer && bookingDateStr === selectedDate && b.time === time;
+      return bookingDateStr === selectedDate && b.time === time;
     });
   };
 
   const handleBook = async () => {
     if (!selectedTrainer || !selectedDate || !selectedTime || authLoading || !user) return;
-    setBooked(true);
     try {
+      setError(null);
       const res = await fetch('/api/member/bookings', {
         method: 'POST',
         headers: {
@@ -175,21 +199,25 @@ export default function BookingPage() {
         credentials: 'include',
         body: JSON.stringify({ trainerId: selectedTrainer, date: selectedDate, time: selectedTime })
       });
+      
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to create booking');
+        throw new Error(data.error || 'Failed to create booking');
       }
-      const newBooking = await res.json();
-      setBookingsData(prev => [...prev, newBooking]);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Booking failed');
-    } finally {
+
+      setBooked(true);
+      setBookingsData(prev => [...prev, data]);
+      setBusySlots(prev => [...prev, data]);
+      
       setTimeout(() => {
         setShowConfirm(false);
         setBooked(false);
         setSelectedTime('');
       }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Booking failed');
+      setShowConfirm(false);
     }
   };
 

@@ -13,8 +13,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const upcoming = searchParams.get('upcoming') === 'true'
   const statusParam = searchParams.get('status') || undefined
+  const trainerId = searchParams.get('trainerId') || undefined
 
-  const { data, error, status } = await getBookings(auth.user.id, upcoming, statusParam)
+  const { data, error, status } = await getBookings(auth.user.id, upcoming, statusParam, trainerId)
 
   if (error) {
     return NextResponse.json({ error }, { status })

@@ -225,11 +225,22 @@ export async function markAttendance(memberId: string, code: string) {
 }
 
 /**
- * Returns bookings for a member.
+ * Returns bookings. If trainerId is provided, returns all bookings for that trainer (privacy-aware).
+ * Otherwise returns bookings for the specified member.
  */
-export async function getBookings(memberId: string, upcoming: boolean = false, status?: string) {
+export async function getBookings(memberId: string, upcoming: boolean = false, status?: string, trainerId?: string) {
   try {
-    const where: any = { memberId }
+    const where: any = {}
+    
+    if (trainerId) {
+      where.trainerId = trainerId
+      // When fetching for a trainer, we usually want to omit cancelled ones 
+      // so the slots show as available again
+      where.NOT = { status: 'CANCELLED' }
+    } else {
+      where.memberId = memberId
+    }
+
     if (status) {
       where.status = status as any
     }
@@ -246,6 +257,8 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
         date: true,
         time: true,
         status: true,
+        // Only include trainer name if we're not filtering by trainer already
+        // Or always include it for the member view
         trainer: {
           select: { user: { select: { name: true } } }
         },
@@ -263,6 +276,7 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
 
     return { data: result }
   } catch (error) {
+    console.error('[GetBookings] Error:', error)
     return { error: 'Failed to fetch bookings', status: 500 }
   }
 }
