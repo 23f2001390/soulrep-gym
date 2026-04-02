@@ -105,12 +105,18 @@ export default function TrainerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Today's Schedule */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Today&apos;s Schedule</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Training Schedule</CardTitle>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="text-[10px]">Today</Badge>
+                {sessions.some(s => new Date(s.date) > new Date()) && (
+                  <Badge className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-200">Upcoming</Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {todaySessions.length > 0 ? todaySessions.map(session => (
+                {sessions.length > 0 ? sessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(session => (
                   <div
                     key={session.id}
                     className={cn(
@@ -126,24 +132,18 @@ export default function TrainerDashboard() {
                         </div>
                         <div>
                           <p className="font-medium text-sm">{session.memberName}</p>
-                          <p className="text-xs text-muted-foreground">{session.duration} minutes</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                            {new Date(session.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · {session.time}
+                          </p>
                         </div>
                       </div>
-                      <Badge variant={session.completed ? 'secondary' : 'default'} className="text-xs">
-                        {session.completed ? 'Completed' : 'In Progress'}
+                      <Badge variant={session.completed ? 'secondary' : 'default'} className="text-[10px]">
+                        {session.completed ? 'Completed' : 'Planned'}
                       </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {session.exercises.map((ex: any, i: number) => (
-                        <Badge key={i} variant="outline" className="text-xs">{ex}</Badge>
-                      ))}
-                    </div>
-                    {session.notes && (
-                      <p className="text-xs text-muted-foreground mt-2 italic">{session.notes}</p>
-                    )}
                   </div>
                 )) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">No sessions scheduled for today.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No sessions found.</p>
                 )}
               </div>
             </CardContent>
