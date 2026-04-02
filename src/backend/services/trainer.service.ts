@@ -412,3 +412,85 @@ export async function deleteWorkoutPlan(trainerId: string, planId: string) {
     return { error: 'Failed to delete workout plan', status: 500 }
   }
 }
+
+/**
+ * Confirms a pending booking.
+ */
+export async function confirmBooking(trainerId: string, bookingId: string) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+    })
+
+    if (!booking || booking.trainerId !== trainerId) {
+      return { error: 'Booking not found', status: 404 }
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'CONFIRMED' },
+    })
+
+    return { data: updated }
+  } catch (error) {
+    console.error('Error in confirmBooking:', error)
+    return { error: 'Internal server error', status: 500 }
+  }
+}
+
+/**
+ * Completes a confirmed booking and logs the session.
+ */
+export async function completeBooking(trainerId: string, bookingId: string, notes?: string) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        member: {
+          include: {
+            WorkoutPlan: {
+              where: {
+                day: {
+                  equals: new Date().toLocaleDateString('en-US', { weekday: 'long' })
+                }
+              },
+              include: { exercises: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!booking || booking.trainerId !== trainerId) {
+      return { error: 'Booking not found', status: 404 }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // Create session log if there are exercises in plan
+      const workoutPlan = booking.member.WorkoutPlan[0]
+      const exercisesStr = workoutPlan?.exercises.map(e => `${e.name} (${e.sets}x${e.reps})`) || []
+
+      await tx.sessionLog.create({
+        data: {
+          memberId: booking.memberId,
+          trainerId,
+          date: booking.date,
+          duration: 60,
+          exercises: exercisesStr,
+          completed: true,
+        }
+      })
+
+      // Update booking status
+      const updated = await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'CONFIRMED' },
+      })
+
+      return { data: updated }
+    })
+  } catch (error) {
+    console.error('Error in completeBooking:', error)
+    return { error: 'Internal server error', status: 500 }
+  }
+}

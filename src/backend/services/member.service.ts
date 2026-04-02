@@ -321,7 +321,7 @@ export async function createBooking(memberId: string, trainerId: string, date: s
           trainerId,
           date: bookingDate,
           time,
-          status: 'PENDING'
+          status: 'CONFIRMED'
         },
         select: {
           id: true,
@@ -338,7 +338,7 @@ export async function createBooking(memberId: string, trainerId: string, date: s
         data: {
           userId: trainerId,
           title: "New Session Booking",
-          message: `${booking.member.user?.name || 'A member'} has requested a session on ${date} at ${time}.`,
+          message: `${booking.member.user?.name || 'A member'} has booked a session on ${date} at ${time}.`,
         }
       })
 

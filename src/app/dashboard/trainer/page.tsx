@@ -3,11 +3,12 @@
 import { TopBar } from "@/components/shared/top-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 // import { sessionLogs, getMembersForTrainer, trainers } from "@/lib/mock-data";
 import { KPICard } from "@/components/shared/kpi-card";
-import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell } from "lucide-react";
+import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function TrainerDashboard() {
@@ -18,47 +19,48 @@ export default function TrainerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      if (authLoading || !user) return;
-      try {
-        setLoading(true);
-        setError(null);
-        // Fetch profile
-        const profileRes = await fetch('/api/trainer/profile', { credentials: 'include' });
-        if (!profileRes.ok) {
-          const err = await profileRes.json();
-          throw new Error(err.error || 'Failed to load profile');
-        }
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-        // Fetch today's sessions (using local date)
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0];
-        const sessionsRes = await fetch(`/api/trainer/sessions?date=${dateStr}`, { credentials: 'include' });
-        if (!sessionsRes.ok) {
-          const err = await sessionsRes.json();
-          throw new Error(err.error || 'Failed to load sessions');
-        }
-        const sessionsData = await sessionsRes.json();
-        setSessions(sessionsData);
-        // Fetch members
-        const membersRes = await fetch('/api/trainer/members', { credentials: 'include' });
-        if (!membersRes.ok) {
-          const err = await membersRes.json();
-          throw new Error(err.error || 'Failed to load members');
-        }
-        const membersData = await membersRes.json();
-        setMembers(membersData);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Something went wrong');
-      } finally {
-        setLoading(false);
+  const loadDashboardData = useCallback(async () => {
+    if (authLoading || !user) return;
+    try {
+      setLoading(true);
+      setError(null);
+      // Fetch profile
+      const profileRes = await fetch('/api/trainer/profile', { credentials: 'include' });
+      if (!profileRes.ok) {
+        const err = await profileRes.json();
+        throw new Error(err.error || 'Failed to load profile');
       }
+      const profileData = await profileRes.json();
+      setProfile(profileData);
+      // Fetch today's sessions (using local date)
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      const sessionsRes = await fetch(`/api/trainer/sessions?date=${dateStr}`, { credentials: 'include' });
+      if (!sessionsRes.ok) {
+        const err = await sessionsRes.json();
+        throw new Error(err.error || 'Failed to load sessions');
+      }
+      const sessionsData = await sessionsRes.json();
+      setSessions(sessionsData);
+      // Fetch members
+      const membersRes = await fetch('/api/trainer/members', { credentials: 'include' });
+      if (!membersRes.ok) {
+        const err = await membersRes.json();
+        throw new Error(err.error || 'Failed to load members');
+      }
+      const membersData = await membersRes.json();
+      setMembers(membersData);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [authLoading, user?.id]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   // Compute KPIs
   const todaySessions = sessions;
@@ -160,6 +162,50 @@ export default function TrainerDashboard() {
                     ) : (
                       <p className="text-[10px] text-muted-foreground italic mt-2">No workout plan assigned for {new Date(session.date).toLocaleDateString('en-IN', { weekday: 'long' })}</p>
                     )}
+
+                    <div className="mt-3 flex justify-end gap-2">
+                       {!session.completed ? (
+                         <Button 
+                           size="sm" 
+                           variant="outline" 
+                           className="h-7 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                           onClick={async () => {
+                             try {
+                               const res = await fetch(`/api/trainer/bookings/${session.id}`, {
+                                 method: 'PATCH',
+                                 headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify({ action: 'CONFIRM' })
+                               });
+                               if (res.ok) {
+                                 loadDashboardData();
+                               }
+                             } catch (err) { console.error('Failed to confirm session', err); }
+                           }}
+                         >
+                           <CheckCircle2 size={12} className="mr-1" /> Confirm Booking
+                         </Button>
+                       ) : (
+                         <Button 
+                           size="sm" 
+                           variant="outline" 
+                           className="h-7 text-[10px]"
+                           onClick={async () => {
+                             try {
+                               const res = await fetch(`/api/trainer/bookings/${session.id}`, {
+                                 method: 'PATCH',
+                                 headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify({ action: 'COMPLETE' })
+                               });
+                               if (res.ok) {
+                                 loadDashboardData();
+                               }
+                             } catch (err) { console.error('Failed to complete session', err); }
+                           }}
+                         >
+                           Mark Finished
+                         </Button>
+                       )}
+                    </div>
                   </div>
                 )) : (
                   <p className="text-sm text-muted-foreground text-center py-8">No sessions found.</p>
