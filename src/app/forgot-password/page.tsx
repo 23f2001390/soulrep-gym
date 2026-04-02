@@ -143,10 +143,7 @@ export default function ForgotPasswordPage() {
                   </Button>
                 </div>
 
-                <div className="bg-muted/20 p-3 border-2 border-dashed border-muted rounded text-[10px] text-muted-foreground leading-tight">
-                  <p className="font-bold uppercase mb-1">Demo Mode Note:</p>
-                  In this version, we verify your identity using only your registered Email and Phone.
-                </div>
+
               </form>
             )}
           </CardContent>
