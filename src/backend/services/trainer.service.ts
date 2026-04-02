@@ -252,7 +252,7 @@ export async function getTrainerSessions(trainerId: string, date: string) {
 export async function getTrainerReviews(trainerId: string) {
   try {
     const reviews = await prisma.review.findMany({
-      where: { OR: [ { trainerId }, { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } } ] },
+      where: { trainerId },
       orderBy: { date: 'desc' },
       select: {
         id: true,
