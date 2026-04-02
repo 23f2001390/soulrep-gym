@@ -1,0 +1,316 @@
+openapi: 3.0.3
+info:
+  title: SoulRep Gym Management API (Exhaustive)
+  description: |
+    Complete API suite for SoulRep Gym. Dynamically generated from source code.
+    Covers Auth, Member Dashboard, Owner Analytics, and Trainer Operations.
+  version: 2.0.0
+servers:
+  - url: http://localhost:3000/api
+paths:
+  /auth/reset-password:
+    post:
+      summary: POST /auth/reset-password
+      responses:
+        '200':
+          description: Successful operation
+  /auth/{...nextauth}:
+    get:
+      summary: GET /auth/{...nextauth}
+      responses: { '200': { description: OK } }
+  /member/attendance:
+    get:
+      summary: GET /member/attendance
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /member/attendance
+      responses:
+        '200':
+          description: Successful operation
+  /member/bookings:
+    get:
+      summary: GET /member/bookings
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /member/bookings
+      responses:
+        '200':
+          description: Successful operation
+  /member/invoices:
+    get:
+      summary: GET /member/invoices
+      responses:
+        '200':
+          description: Successful operation
+  /member/invoices/{id}:
+    get:
+      summary: GET /member/invoices/{id}
+      responses:
+        '200':
+          description: Successful operation
+  /member/meal-plan:
+    get:
+      summary: GET /member/meal-plan
+      responses:
+        '200':
+          description: Successful operation
+  /member/nutrition:
+    get:
+      summary: GET /member/nutrition
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /member/nutrition
+      responses:
+        '200':
+          description: Successful operation
+  /member/nutrition-profile:
+    get:
+      summary: GET /member/nutrition-profile
+      responses:
+        '200':
+          description: Successful operation
+  /member/profile:
+    get:
+      summary: GET /member/profile
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /member/profile
+      responses:
+        '200':
+          description: Successful operation
+  /member/reviews:
+    get:
+      summary: GET /member/reviews
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /member/reviews
+      responses:
+        '200':
+          description: Successful operation
+  /member/session-logs:
+    get:
+      summary: GET /member/session-logs
+      responses:
+        '200':
+          description: Successful operation
+  /member/trainer:
+    get:
+      summary: GET /member/trainer
+      responses:
+        '200':
+          description: Successful operation
+  /member/trainers:
+    get:
+      summary: GET /member/trainers
+      responses:
+        '200':
+          description: Successful operation
+  /member/workout-plans:
+    get:
+      summary: GET /member/workout-plans
+      responses:
+        '200':
+          description: Successful operation
+  /notifications:
+    get:
+      summary: GET /notifications
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /notifications
+      responses:
+        '200':
+          description: Successful operation
+  /owner/attendance:
+    get:
+      summary: GET /owner/attendance
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /owner/attendance
+      responses:
+        '200':
+          description: Successful operation
+  /owner/equipment:
+    get:
+      summary: GET /owner/equipment
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /owner/equipment
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /owner/equipment
+      responses:
+        '200':
+          description: Successful operation
+  /owner/expiring-members:
+    get:
+      summary: GET /owner/expiring-members
+      responses:
+        '200':
+          description: Successful operation
+  /owner/invoices:
+    get:
+      summary: GET /owner/invoices
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /owner/invoices
+      responses:
+        '200':
+          description: Successful operation
+  /owner/invoices/{id}:
+    patch:
+      summary: PATCH /owner/invoices/{id}
+      responses:
+        '200':
+          description: Successful operation
+  /owner/kpi:
+    get:
+      summary: GET /owner/kpi
+      responses:
+        '200':
+          description: Successful operation
+  /owner/members:
+    delete:
+      summary: DELETE /owner/members
+      responses:
+        '200':
+          description: Successful operation
+    get:
+      summary: GET /owner/members
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /owner/members
+      responses:
+        '200':
+          description: Successful operation
+  /owner/profile:
+    get:
+      summary: GET /owner/profile
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /owner/profile
+      responses:
+        '200':
+          description: Successful operation
+  /owner/revenue:
+    get:
+      summary: GET /owner/revenue
+      responses:
+        '200':
+          description: Successful operation
+  /owner/trainer-ratings:
+    get:
+      summary: GET /owner/trainer-ratings
+      responses:
+        '200':
+          description: Successful operation
+  /owner/trainers:
+    get:
+      summary: GET /owner/trainers
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /owner/trainers
+      responses:
+        '200':
+          description: Successful operation
+  /owner/trainers/{trainerId}/members:
+    get:
+      summary: GET /owner/trainers/{trainerId}/members
+      responses:
+        '200':
+          description: Successful operation
+  /owner/trainers/{trainerId}/reviews:
+    get:
+      summary: GET /owner/trainers/{trainerId}/reviews
+      responses:
+        '200':
+          description: Successful operation
+  /signup:
+    post:
+      summary: POST /signup
+      responses:
+        '200':
+          description: Successful operation
+  /test_auth:
+    get:
+      summary: GET /test_auth
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/bookings/{bookingId}:
+    patch:
+      summary: PATCH /trainer/bookings/{bookingId}
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/members:
+    get:
+      summary: GET /trainer/members
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/members/{memberId}/workout-plans:
+    get:
+      summary: GET /trainer/members/{memberId}/workout-plans
+      responses:
+        '200':
+          description: Successful operation
+    post:
+      summary: POST /trainer/members/{memberId}/workout-plans
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/members/{memberId}/workout-plans/{planId}:
+    delete:
+      summary: DELETE /trainer/members/{memberId}/workout-plans/{planId}
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/profile:
+    get:
+      summary: GET /trainer/profile
+      responses:
+        '200':
+          description: Successful operation
+    patch:
+      summary: PATCH /trainer/profile
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/reviews:
+    get:
+      summary: GET /trainer/reviews
+      responses:
+        '200':
+          description: Successful operation
+  /trainer/sessions:
+    get:
+      summary: GET /trainer/sessions
+      responses:
+        '200':
+          description: Successful operation
