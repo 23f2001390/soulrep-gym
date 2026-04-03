@@ -3,7 +3,8 @@ import { hashPassword } from '@/lib/auth'
 
 /**
  * Updates core user profile information (Name, Phone, Password).
- * Optionally updates role-specific details if a sub-table exists.
+ * This logic is used by the "Edit Profile" dialog across all roles.
+ * Optionally updates role-specific details like Age or Gender if the user is a member.
  */
 export async function updateGenericProfile(userId: string, data: { 
   name?: string, 
@@ -13,6 +14,7 @@ export async function updateGenericProfile(userId: string, data: {
   gender?: string
 }) {
   try {
+    // First, verify the user's current role so we know which sub-tables to update.
     const user = await prisma.user.findUnique({ 
       where: { id: userId },
       select: { role: true }
@@ -22,14 +24,16 @@ export async function updateGenericProfile(userId: string, data: {
       return { error: 'User not found', status: 404 }
     }
 
-    // Hash password if provided
+    // Only hash the password if the user actually typed a new one.
     let hashedPassword = undefined
     if (data.password) {
       hashedPassword = await hashPassword(data.password)
     }
 
+    // We use a transaction here because profile updates often span multiple tables 
+    // (User and Member). If one fails, we want to roll back everything to stay consistent.
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update User table
+      // 1. Update the base User table (common for everyone)
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: {
@@ -39,7 +43,7 @@ export async function updateGenericProfile(userId: string, data: {
         }
       })
 
-      // 2. Update Role-specific table if Member
+      // 2. Update the Member-specific table if the user is a gym member.
       if (user.role === 'MEMBER') {
         const memberData: any = {}
         if (data.age !== undefined) memberData.age = data.age
@@ -53,8 +57,8 @@ export async function updateGenericProfile(userId: string, data: {
         }
       }
 
-      // 3. Update Trainer specialization if ever added to dialog
-      // (Not currently in the dialog for trainers themselves to edit, but extensible)
+      // Note: Trainer specialization isn't currently editable via the basic profile dialong,
+      // but we could easily add a step 3 here for Trainers in the future.
 
       return updatedUser
     })
@@ -65,3 +69,4 @@ export async function updateGenericProfile(userId: string, data: {
     return { error: 'Internal server error', status: 500 }
   }
 }
+

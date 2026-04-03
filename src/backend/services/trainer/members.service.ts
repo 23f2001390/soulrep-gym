@@ -1,9 +1,21 @@
 import { prisma } from '../../shared/prisma'
 
+/**
+ * Grabs all members that this trainer is responsible for.
+ * Includes both officially assigned members AND members who have 
+ * upcoming sessions booked with this trainer.
+ */
 export async function getTrainerMembers(trainerId: string) {
   try {
     const members = await prisma.member.findMany({
-      where: { OR: [ { trainerId }, { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } } ] },
+      // We check for two things: 1. Is this their primary trainer? 
+      // 2. Do they have an active (Pending/Confirmed) session booking?
+      where: { 
+        OR: [ 
+          { trainerId }, 
+          { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } } 
+        ] 
+      },
       include: { user: { select: { name: true, email: true } } }
     })
     
@@ -22,3 +34,4 @@ export async function getTrainerMembers(trainerId: string) {
     return { error: 'Failed to fetch trainer members', status: 500 }
   }
 }
+

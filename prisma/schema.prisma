@@ -136,6 +136,7 @@ model SessionLog {
   memberId  String
   trainerId String
   date      DateTime
+  time      String?
   duration  Int
   exercises String[]
   notes     String?

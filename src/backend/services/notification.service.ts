@@ -1,7 +1,9 @@
 import { prisma } from '../shared/prisma'
 
 /**
- * Service to handle notification-related logic.
+ * Grabs the most recent 20 notifications for a user.
+ * We limit this to 20 to keep the dashboard snappy and avoid 
+ * loading months of old history unless requested.
  */
 export async function getNotifications(userId: string) {
   try {
@@ -17,7 +19,9 @@ export async function getNotifications(userId: string) {
 }
 
 /**
- * Helper to create a notification.
+ * Creates an in-app alert for a specific user.
+ * Usually triggered by system events like new bookings, plan expirations,
+ * or feedback from trainers.
  */
 export async function createNotification(userId: string, title: string, message: string) {
   try {
@@ -37,16 +41,19 @@ export async function createNotification(userId: string, title: string, message:
 }
 
 /**
- * Marks a notification as read.
+ * Handles clearing notification badges.
+ * Can either mark a single notification as read or bulk-clear everything.
  */
 export async function markAsRead(userId: string, notificationId?: string, readAll: boolean = false) {
   try {
     if (readAll) {
+      // Clear all unread markers for the user at once
       await prisma.notification.updateMany({
         where: { userId, read: false },
         data: { read: true }
       })
     } else if (notificationId) {
+      // Clear a specific notification (e.g. when the user clicks on it)
       await prisma.notification.update({
         where: { id: notificationId, userId },
         data: { read: true }
@@ -58,3 +65,4 @@ export async function markAsRead(userId: string, notificationId?: string, readAl
     return { error: 'Failed to update notification', status: 500 }
   }
 }
+

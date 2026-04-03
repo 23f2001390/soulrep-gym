@@ -1,9 +1,16 @@
 import { prisma } from '../../shared/prisma'
 
+/**
+ * Fetches all workout routines created for a specific member by this trainer.
+ * Includes a security check to ensure this trainer actually has an active 
+ * relationship with the member before showing their data.
+ */
 export async function getTrainerMemberWorkoutPlans(trainerId: string, memberId: string) {
   const member = await prisma.member.findFirst({
     where: { 
       id: memberId,
+      // Security: Only allow retrieval if they are the primary trainer 
+      // or if there's an active booking.
       OR: [
         { trainerId },
         { Booking: { some: { trainerId, status: { in: ['PENDING', 'CONFIRMED'] } } } }
@@ -36,6 +43,11 @@ export async function getTrainerMemberWorkoutPlans(trainerId: string, memberId: 
   return { data: result }
 }
 
+/**
+ * Creates a new training routine for a member.
+ * This uses a nested Prisma 'create' to insert both the plan details 
+ * and the individual exercises in a single atomic database hit.
+ */
 export async function createWorkoutPlan(trainerId: string, memberId: string, data: { day: string, notes?: string, exercises: any[] }) {
   try {
     const member = await prisma.member.findFirst({
@@ -78,6 +90,10 @@ export async function createWorkoutPlan(trainerId: string, memberId: string, dat
   }
 }
 
+/**
+ * Removes a workout plan. 
+ * Includes a check to make sure the trainer deleting it is the one who created it.
+ */
 export async function deleteWorkoutPlan(trainerId: string, planId: string) {
   try {
     const plan = await prisma.workoutPlan.findUnique({
@@ -98,3 +114,4 @@ export async function deleteWorkoutPlan(trainerId: string, planId: string) {
     return { error: 'Failed to delete workout plan', status: 500 }
   }
 }
+

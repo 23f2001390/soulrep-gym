@@ -2,14 +2,18 @@ import { prisma } from '../../shared/prisma'
 import { hash } from 'bcryptjs'
 
 /**
- * Get all trainers for selection
+ * Lists all trainers in the system.
+ * Joins user details, reviews, and member assignments to show a 
+ * comprehensive summary on the trainers list page.
  */
 export async function getTrainers() {
   try {
     const trainers = await prisma.trainer.findMany({
       include: { 
         user: true,
+        // Pull reviews to calculate the average rating on the fly.
         Review: { select: { rating: true } },
+        // Pull members to show the workload of the trainer.
         Members: { select: { id: true } }
       }
     })
@@ -30,6 +34,7 @@ export async function getTrainers() {
         reviewCount: reviewCount,
         memberCount: t.Members?.length || 0,
         availability: t.availability,
+        // Fallback to a full empty week if no schedule is set yet.
         schedule: t.schedule || { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] }
       }
     })
@@ -41,6 +46,11 @@ export async function getTrainers() {
   }
 }
 
+/**
+ * Retrieves the full profile of a single trainer.
+ * This includes their active members, client reviews, and an 
+ * expanded weekly schedule that overlays active bookings over their availability.
+ */
 export async function getTrainerProfile(trainerId: string) {
   try {
     const trainer = await prisma.trainer.findUnique({
@@ -57,6 +67,7 @@ export async function getTrainerProfile(trainerId: string) {
             user: { select: { name: true } } 
           } 
         },
+        // We only pull upcoming or current-day bookings to show on the schedule.
         Booking: {
           where: {
             date: {
@@ -79,17 +90,20 @@ export async function getTrainerProfile(trainerId: string) {
       ? trainer.Review.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
       : 0
 
-    // Build accurate schedule from bookings
+    // To show a unified schedule, we start with the trainer's custom availability 
+    // and then inject actual booked sessions into it.
     const baseSchedule: any = (trainer.schedule as any) || {
       Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
     }
 
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     
+    // First, clear out any 'session' tags from previous renders if we were reusing the object.
     Object.keys(baseSchedule).forEach(day => {
       baseSchedule[day] = baseSchedule[day].filter((slot: any) => slot.type === 'available' || slot.type === 'break')
     })
 
+    // Now, overlay the bookings. This tells the trainer *who* is coming in at what time.
     trainer.Booking.forEach(booking => {
       const dayName = days[new Date(booking.date).getDay()]
       if (baseSchedule[dayName]) {
@@ -107,6 +121,7 @@ export async function getTrainerProfile(trainerId: string) {
       }
     })
 
+    // Sort by time so the schedule is readable (Morning to Evening).
     Object.keys(baseSchedule).forEach(day => {
       baseSchedule[day].sort((a: any, b: any) => a.start.localeCompare(b.start))
     })
@@ -144,8 +159,14 @@ export async function getTrainerProfile(trainerId: string) {
   }
 }
 
+/**
+ * On-boards a new trainer.
+ * This is a multi-step process: we first create a core User account with the role 'TRAINER',
+ * then set up their specialized Trainer record with a default standard schedule.
+ */
 export async function createTrainer(data: { name: string, email: string, specialization: string, password?: string, phone?: string }) {
   try {
+    // Check for collisions to avoid duplicate emails.
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email }
     })
@@ -154,10 +175,12 @@ export async function createTrainer(data: { name: string, email: string, special
       return { error: 'User with this email already exists', status: 400 }
     }
 
+    // Default password for new trainers if one isn't specified.
     const passwordToHash = data.password || 'trainer123'
     const hashedPassword = await hash(passwordToHash, 12)
 
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Create the base login account.
       const user = await tx.user.create({
         data: {
           name: data.name,
@@ -168,6 +191,8 @@ export async function createTrainer(data: { name: string, email: string, special
         }
       })
 
+      // 2. Initialize the trainer's professional profile with a generous default schedule 
+      // (6 AM to 10 PM on weekdays).
       const trainer = await tx.trainer.create({
         data: {
           id: user.id,
@@ -194,3 +219,4 @@ export async function createTrainer(data: { name: string, email: string, special
     return { error: 'Failed to create trainer', status: 500 }
   }
 }
+

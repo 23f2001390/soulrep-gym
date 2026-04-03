@@ -1,5 +1,10 @@
 import { prisma } from '../../shared/prisma'
 
+/**
+ * Fetches the entire billing history of the gym.
+ * Shows the most recent transactions first so the owner can track 
+ * cash flow easily from the dashboard.
+ */
 export async function getInvoices() {
   try {
     const invoices = await prisma.invoice.findMany({
@@ -24,10 +29,17 @@ export async function getInvoices() {
   }
 }
 
+/**
+ * Generates a new invoice/receipt for a member.
+ * If the owner marks the invoice as 'PAID' immediately (offline cash payment), 
+ * we automatically activate the member's plan and add their session credits.
+ */
 export async function createInvoice(invoiceData: any) {
   try {
     const { memberId, plan, status } = invoiceData
-    // Pricing logic standardized to 1499, 2999, 4999 (monthly cycles)
+    
+    // Default pricing logic: Basic 1499, Pro 2999, Elite 4999.
+    // We allow an manual override if the owner gives a discount.
     const amount = invoiceData.amount ? parseFloat(invoiceData.amount.toString()) : 
                    plan === 'MONTHLY' ? 1499 : 
                    plan === 'QUARTERLY' ? 2999 : 4999;
@@ -42,11 +54,13 @@ export async function createInvoice(invoiceData: any) {
       },
     });
 
-    // If invoice is PAID, activate the member immediately
+    // Workflow: If the member paid right now, skip the pending state 
+    // and unlock their gym access immediately.
     if (status === 'PAID') {
+      // Calculate how many PT sessions are included in this specific plan tier.
       const sessions = plan === 'MONTHLY' ? 0 : plan === 'QUARTERLY' ? 1 : 4;
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30); // All plans are monthly focus
+      expiryDate.setDate(expiryDate.getDate() + 30); // Standard 30-day billing cycle.
       
       await prisma.member.update({
         where: { id: memberId },
@@ -54,6 +68,7 @@ export async function createInvoice(invoiceData: any) {
           plan,
           planStatus: 'ACTIVE',
           planExpiry: expiryDate,
+          // We increment instead of overwriting to keep any leftover credits from before.
           sessionsRemaining: {
             increment: sessions
           }
@@ -67,3 +82,4 @@ export async function createInvoice(invoiceData: any) {
     return { error: 'Failed to create invoice', status: 500 }
   }
 }
+

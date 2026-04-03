@@ -22,6 +22,7 @@ export default function OwnerDashboard() {
   const [selectedTrainer, setSelectedTrainer] = useState<any | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reminding, setReminding] = useState(false);
 
   const fetchReviews = async (trainerId: string) => {
     setLoadingReviews(true);
@@ -34,6 +35,24 @@ export default function OwnerDashboard() {
       console.error(err);
     } finally {
       setLoadingReviews(false);
+    }
+  };
+
+  const handleSendReminders = async () => {
+    try {
+      setReminding(true);
+      const res = await fetch("/api/owner/send-reminders", { method: "POST" });
+      if (res.ok) {
+        alert("Reminders sent successfully!");
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Failed to send reminders");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred");
+    } finally {
+      setReminding(false);
     }
   };
 
@@ -164,11 +183,23 @@ export default function OwnerDashboard() {
 
         {/* Expiry Alerts */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
               Expiry Alerts
             </CardTitle>
+            {expiringMembers.length > 0 && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-8 text-xs font-bold uppercase border-2 border-primary hover:bg-primary hover:text-white transition-all transform active:scale-95"
+                onClick={handleSendReminders}
+                disabled={reminding}
+              >
+                {reminding ? <Loader2 className="animate-spin mr-2" size={12} /> : null}
+                {reminding ? "Sending..." : "Remind All"}
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {expiringMembers.length > 0 ? (

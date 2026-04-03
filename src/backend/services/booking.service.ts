@@ -1,5 +1,10 @@
 import { prisma } from '../shared/prisma'
 
+/**
+ * Fetches bookings for a member. 
+ * Can be filtered by status (CONFIRMED, CANCELLED) or 
+ * restricted to upcoming sessions only.
+ */
 export async function getBookings(memberId: string, upcoming: boolean = false, status?: string) {
   try {
     const where: any = { memberId }
@@ -7,6 +12,7 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
       where.status = status as any
     }
     if (upcoming) {
+      // Show only sessions from the current time onwards
       where.date = { gte: new Date() }
     }
 
@@ -40,21 +46,29 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
   }
 }
 
+/**
+ * Handles the creation of a new personal training session.
+ * Now books directly (CONFIRMED status) and automatically 
+ * deducts a session credit from the member's account.
+ */
 export async function createBooking(memberId: string, trainerId: string, date: string, time: string) {
   if (!trainerId || !date || !time) {
     return { error: 'Missing required fields', status: 400 }
   }
 
+  // Ensure the member exists and has enough session credits
   const member = await prisma.member.findUnique({ where: { id: memberId } })
   if (!member) {
     return { error: 'Member not found', status: 404 }
   }
+  
   if (member.sessionsRemaining <= 0) {
     return { error: 'No trainer sessions remaining on your plan', status: 403 }
   }
 
   const bookingDate = new Date(date + 'T00:00:00.000Z')
 
+  // Check if someone else already snagged this slot
   const existing = await prisma.booking.findFirst({
     where: {
       trainerId,
@@ -71,13 +85,14 @@ export async function createBooking(memberId: string, trainerId: string, date: s
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Create the record with CONFIRMED status immediately
       const booking = await tx.booking.create({
         data: {
           memberId,
           trainerId,
           date: bookingDate,
           time,
-          status: 'PENDING'
+          status: 'CONFIRMED'
         },
         select: {
           id: true,
@@ -90,15 +105,16 @@ export async function createBooking(memberId: string, trainerId: string, date: s
         },
       })
 
+      // Alert the trainer about the new booking
       await tx.notification.create({
         data: {
           userId: trainerId,
           title: "New Session Booking",
-          message: `${booking.member.user?.name || 'A member'} has requested a session on ${date} at ${time}.`,
+          message: `${booking.member.user?.name || 'A member'} has booked a session on ${date} at ${time}.`,
         }
       })
 
-      // Decrement the PT sessions balance
+      // Subtract from the PT balance as the session is now locked in
       await tx.member.update({
         where: { id: memberId },
         data: { sessionsRemaining: { decrement: 1 } }
@@ -119,6 +135,8 @@ export async function createBooking(memberId: string, trainerId: string, date: s
       status: 201
     }
   } catch (error) {
+    console.error('[CreateBooking] Transaction failed:', error)
     return { error: 'Failed to create booking', status: 500 }
   }
 }
+

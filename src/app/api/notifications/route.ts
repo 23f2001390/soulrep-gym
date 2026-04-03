@@ -3,8 +3,9 @@ import { authenticate } from '@/backend/middleware/auth-middleware'
 import { getNotifications, markAsRead } from '@/backend/services/notification.service'
 
 /**
- * GET /api/notifications
- * Returns all notifications for the current user.
+ * Controller for grabbing a user's alerts/messages.
+ * We use the 'authenticate' middleware to ensure that users can only 
+ * see notifications meant for their specific userId.
  */
 export async function GET(req: NextRequest) {
   const auth = await authenticate() 
@@ -18,11 +19,12 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * PATCH /api/notifications
- * Marks a notification as read.
+ * Handles toggling the 'read' status of notifications.
+ * Supports both single-notification updates (via 'id') and 
+ * mass updates (via 'readAll' flag).
  */
 export async function PATCH(req: NextRequest) {
-  const auth = await authenticate()
+  const auth = await authenticate() // Identity verification.
   if (auth.error) return auth.error
 
   try {
@@ -35,7 +37,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error('[Notifications API] Error:', error)
     return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 })
   }
 }
+
 
