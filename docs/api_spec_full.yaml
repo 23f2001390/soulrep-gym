@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: SoulRep Gym Management API (Exhaustive)
+  title: SoulRep Gym Management API
   description: |
     Complete API suite for SoulRep Gym. Dynamically generated from source code.
     Covers Auth, Member Dashboard, Owner Analytics, and Trainer Operations.
