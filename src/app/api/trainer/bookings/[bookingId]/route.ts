@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '@/backend/middleware/auth-middleware'
-import { confirmBooking, completeBooking } from '@/backend/services/trainer.service'
+import { completeBooking } from '@/backend/services/trainer.service'
 
 /**
  * PATCH /api/trainer/bookings/[bookingId]
@@ -16,16 +16,12 @@ export async function PATCH(
   const { action, notes } = await req.json()
 
   try {
-    let result: any
-    if (action === 'CONFIRM') {
-      result = await confirmBooking(auth.user.id, bookingId)
-    } else if (action === 'COMPLETE') {
-      result = await completeBooking(auth.user.id, bookingId, notes)
-    } else {
+    if (action !== 'COMPLETE') {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
+    const result = await completeBooking(auth.user.id, bookingId, notes)
 
-    if (result.error) {
+    if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
     return NextResponse.json(result.data)

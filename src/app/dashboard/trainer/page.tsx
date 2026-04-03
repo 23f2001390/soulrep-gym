@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 // import { sessionLogs, getMembersForTrainer, trainers } from "@/lib/mock-data";
 import { KPICard } from "@/components/shared/kpi-card";
-import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell, Check } from "lucide-react";
+import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -141,9 +141,11 @@ export default function TrainerDashboard() {
                       </div>
                       <Badge variant={session.completed ? 'default' : 'secondary'} className={cn(
                         "text-[10px]",
-                        !session.completed && "bg-yellow-500/10 text-yellow-600 border-yellow-200"
+                        session.completed
+                          ? "bg-green-500/10 text-green-600 border-green-200"
+                          : "bg-blue-500/10 text-blue-600 border-blue-200"
                       )}>
-                        {session.completed ? 'Confirmed' : 'Pending'}
+                        {session.completed ? 'Finished' : 'Booked'}
                       </Badge>
                     </div>
                     {session.workout ? (
@@ -163,32 +165,12 @@ export default function TrainerDashboard() {
                       <p className="text-[10px] text-muted-foreground italic mt-2">No workout plan assigned for {new Date(session.date).toLocaleDateString('en-IN', { weekday: 'long' })}</p>
                     )}
 
-                    <div className="mt-3 flex justify-end gap-2">
+                     <div className="mt-3 flex justify-end gap-2">
                        {!session.completed ? (
-                         <Button 
-                           size="sm" 
-                           variant="outline" 
-                           className="h-7 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
-                           onClick={async () => {
-                             try {
-                               const res = await fetch(`/api/trainer/bookings/${session.id}`, {
-                                 method: 'PATCH',
-                                 headers: { 'Content-Type': 'application/json' },
-                                 body: JSON.stringify({ action: 'CONFIRM' })
-                               });
-                               if (res.ok) {
-                                 loadDashboardData();
-                               }
-                             } catch (err) { console.error('Failed to confirm session', err); }
-                           }}
-                         >
-                           <CheckCircle2 size={12} className="mr-1" /> Confirm Booking
-                         </Button>
-                       ) : (
-                         <Button 
-                           size="sm" 
-                           variant="outline" 
-                           className="h-7 text-[10px]"
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-[10px]"
                            onClick={async () => {
                              try {
                                const res = await fetch(`/api/trainer/bookings/${session.id}`, {
@@ -201,11 +183,11 @@ export default function TrainerDashboard() {
                                }
                              } catch (err) { console.error('Failed to complete session', err); }
                            }}
-                         >
-                           Mark Finished
-                         </Button>
-                       )}
-                    </div>
+                          >
+                            Mark Finished
+                          </Button>
+                        ) : null}
+                     </div>
                   </div>
                 )) : (
                   <p className="text-sm text-muted-foreground text-center py-8">No sessions found.</p>

@@ -11,27 +11,46 @@ export async function getTrainerSessions(trainerId: string, date: string) {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     const dayName = days[startOfDay.getDay()]
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        trainerId,
-        date: { gte: startOfDay, lte: endOfDay }
-      },
-      select: {
-        id: true,
-        status: true,
-        time: true,
-        date: true,
-        member: { 
-          include: { 
-            user: { select: { name: true } },
-            WorkoutPlan: {
-              where: { day: dayName },
-              include: { exercises: true }
+    const [bookings, sessionLogs] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          trainerId,
+          date: { gte: startOfDay, lte: endOfDay },
+          NOT: { status: 'CANCELLED' }
+        },
+        select: {
+          id: true,
+          memberId: true,
+          status: true,
+          time: true,
+          date: true,
+          member: {
+            include: {
+              user: { select: { name: true } },
+              WorkoutPlan: {
+                where: { day: dayName },
+                include: { exercises: true }
+              }
             }
-          } 
-        } 
-      },
-    })
+          }
+        },
+      }),
+      prisma.sessionLog.findMany({
+        where: {
+          trainerId,
+          date: { gte: startOfDay, lte: endOfDay },
+          completed: true,
+        },
+        select: {
+          memberId: true,
+          date: true,
+        }
+      })
+    ])
+
+    const completedSessions = new Set(
+      sessionLogs.map(log => `${log.memberId}:${log.date.toISOString()}`)
+    )
     
     const result = bookings.map(b => {
       const workoutPlan = b.member.WorkoutPlan[0] || null
@@ -39,7 +58,8 @@ export async function getTrainerSessions(trainerId: string, date: string) {
         id: b.id,
         memberName: b.member?.user?.name || 'Unknown Member',
         duration: 60,
-        completed: b.status === 'CONFIRMED',
+        completed: completedSessions.has(`${b.memberId}:${b.date.toISOString()}`),
+        bookingStatus: b.status,
         time: b.time,
         date: b.date,
         workout: workoutPlan ? {
@@ -58,28 +78,6 @@ export async function getTrainerSessions(trainerId: string, date: string) {
   } catch (error) {
     console.error('Error in getTrainerSessions:', error)
     return { error: 'Failed to fetch trainer sessions', status: 500 }
-  }
-}
-
-export async function confirmBooking(trainerId: string, bookingId: string) {
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-    })
-
-    if (!booking || booking.trainerId !== trainerId) {
-      return { error: 'Booking not found', status: 404 }
-    }
-
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: 'CONFIRMED' },
-    })
-
-    return { data: updated }
-  } catch (error) {
-    console.error('Error in confirmBooking:', error)
-    return { error: 'Internal server error', status: 500 }
   }
 }
 
