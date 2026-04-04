@@ -34,11 +34,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Member ID is required' }, { status: 400 })
   }
 
-  const updateData: Prisma.MemberUpdateInput = {}
+  const updateData: any = {}
   
   // If plan is being updated, also update status, expiry and sessions
   if (plan) {
-    updateData.plan = plan
+    updateData.plan = plan as any
     updateData.planStatus = 'ACTIVE'
     const now = new Date()
     if (plan === 'MONTHLY') {
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (planExpiry) {
-    const parsedExpiry = new Date(planExpiry)
+    const parsedExpiry = new Date(planExpiry as string)
     if (Number.isNaN(parsedExpiry.getTime())) {
       return NextResponse.json({ error: 'Plan expiry is invalid' }, { status: 400 })
     }
@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No valid member updates were provided' }, { status: 400 })
   }
 
-  const result = await updateMember(memberId, updateData)
+  const result = await updateMember(memberId as string, updateData)
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
