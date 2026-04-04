@@ -4,7 +4,6 @@ import { TopBar } from "@/components/shared/top-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-// import { sessionLogs, getMembersForTrainer, trainers } from "@/lib/mock-data";
 import { KPICard } from "@/components/shared/kpi-card";
 import { CalendarCheck, Users, Clock, CheckCircle2, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,33 +21,30 @@ export default function TrainerDashboard() {
   const loadDashboardData = useCallback(async () => {
     if (authLoading || !user) return;
     try {
-      setLoading(true);
       setError(null);
-      // Fetch profile
-      const profileRes = await fetch('/api/trainer/profile', { credentials: 'include' });
-      if (!profileRes.ok) {
-        const err = await profileRes.json();
-        throw new Error(err.error || 'Failed to load profile');
-      }
-      const profileData = await profileRes.json();
-      setProfile(profileData);
-      // Fetch today's sessions (using local date)
+      
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
-      const sessionsRes = await fetch(`/api/trainer/sessions?date=${dateStr}`, { credentials: 'include' });
-      if (!sessionsRes.ok) {
-        const err = await sessionsRes.json();
-        throw new Error(err.error || 'Failed to load sessions');
+
+      // Parallelize fetches to drastically improve re-load performance
+      const [profileRes, sessionsRes, membersRes] = await Promise.all([
+        fetch('/api/trainer/profile', { credentials: 'include' }),
+        fetch(`/api/trainer/sessions?date=${dateStr}`, { credentials: 'include' }),
+        fetch('/api/trainer/members', { credentials: 'include' })
+      ]);
+
+      if (!profileRes.ok || !sessionsRes.ok || !membersRes.ok) {
+        throw new Error('Failed to load dashboard data');
       }
-      const sessionsData = await sessionsRes.json();
+
+      const [profileData, sessionsData, membersData] = await Promise.all([
+        profileRes.json(),
+        sessionsRes.json(),
+        membersRes.json()
+      ]);
+
+      setProfile(profileData);
       setSessions(sessionsData);
-      // Fetch members
-      const membersRes = await fetch('/api/trainer/members', { credentials: 'include' });
-      if (!membersRes.ok) {
-        const err = await membersRes.json();
-        throw new Error(err.error || 'Failed to load members');
-      }
-      const membersData = await membersRes.json();
       setMembers(membersData);
     } catch (err: any) {
       console.error(err);
@@ -171,18 +167,32 @@ export default function TrainerDashboard() {
                             size="sm" 
                             variant="outline" 
                             className="h-7 text-[10px]"
-                           onClick={async () => {
-                             try {
-                               const res = await fetch(`/api/trainer/bookings/${session.id}`, {
-                                 method: 'PATCH',
-                                 headers: { 'Content-Type': 'application/json' },
-                                 body: JSON.stringify({ action: 'COMPLETE' })
-                               });
-                               if (res.ok) {
-                                 loadDashboardData();
-                               }
-                             } catch (err) { console.error('Failed to complete session', err); }
-                           }}
+                            onClick={async () => {
+                              // Optimistic update for sessions gallery
+                              setSessions(prev => prev.map(s => 
+                                s.id === session.id ? { ...s, completed: true } : s
+                              ));
+                              
+                              // Optimistic update for member session count in the sidebar
+                              setMembers(prev => prev.map(m => 
+                                m.id === session.memberId ? { ...m, sessionsRemaining: Math.max(0, m.sessionsRemaining - 1) } : m
+                              ));
+                              
+                              try {
+                                const res = await fetch(`/api/trainer/bookings/${session.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'COMPLETE' })
+                                });
+                                if (!res.ok) {
+                                  // Revert count and fetch latest data if API fails
+                                  loadDashboardData();
+                                }
+                              } catch (err) { 
+                                console.error('Failed to complete session', err);
+                                loadDashboardData();
+                              }
+                            }}
                           >
                             Mark Finished
                           </Button>

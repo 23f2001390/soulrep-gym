@@ -110,7 +110,7 @@ export default function TrainersPage() {
       }
     }
     fetchDetails();
-  }, [authLoading, user, selectedTrainerId]);
+  }, [authLoading, user?.id, selectedTrainerId]);
 
   const availabilityColor = (a: string) => {
     switch (a) {

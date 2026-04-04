@@ -10,12 +10,15 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (!user || user.role?.toUpperCase() !== "OWNER") {
+    if (loading) return;
+    if (!user || user.role?.toUpperCase() !== "OWNER") {
+      // Small delay to avoid kicking out during transient session refreshes
+      const t = setTimeout(() => {
         router.push("/login");
-      }
+      }, 500);
+      return () => clearTimeout(t);
     }
-  }, [loading, user, router]);
+  }, [loading, `${user?.id}-${user?.role}`, router]);
 
   if (loading || !user) {
     return null;

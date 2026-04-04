@@ -16,7 +16,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         router.push("/login");
       }
     }
-  }, [loading, user, router]);
+  }, [loading, `${user?.id}-${user?.role}`, router]);
 
   // While loading or if no user is loaded, render nothing or a placeholder.
   if (loading || !user) {

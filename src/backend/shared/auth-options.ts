@@ -103,7 +103,7 @@ export const authOptions: NextAuthOptions = {
                 planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 planStatus: 'ACTIVE',
                 attendanceCount: 0,
-                sessionsRemaining: 30,
+                sessionsRemaining: 0,
                 age: 18,
                 gender: 'OTHER',
               },

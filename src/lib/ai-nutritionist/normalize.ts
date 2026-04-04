@@ -82,13 +82,26 @@ function fillMetric(values: Array<number | null>, targetTotal: number, weights: 
 export function extractJson(text: string): string {
   const trimmed = text.trim();
   const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
 
-  if (start === -1 || end === -1 || end < start) {
+  if (start === -1) {
     throw new Error("Gemini did not return valid JSON.");
   }
 
-  return trimmed.slice(start, end + 1);
+  // Walk forward counting braces to find the end of the first complete object
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) return trimmed.slice(start, i + 1); }
+  }
+
+  throw new Error("Gemini did not return valid JSON.");
 }
 
 function normalizeTargets(rawTargets: unknown): GeneratedNutritionTargets {

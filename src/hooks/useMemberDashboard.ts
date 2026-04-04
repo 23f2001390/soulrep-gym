@@ -62,7 +62,7 @@ export function useMemberDashboard() {
     } finally {
       setLoadingData(false);
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user?.id, router]);
 
   useEffect(() => {
     fetchData();

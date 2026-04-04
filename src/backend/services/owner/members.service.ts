@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../shared/prisma'
 
 /**
@@ -45,7 +46,7 @@ export async function getMembers() {
  * Updates any field on the member's profile (Role-specific).
  * This is used when the owner manually reassigns a trainer or overrides plan info.
  */
-export async function updateMember(memberId: string, updateData: any) {
+export async function updateMember(memberId: string, updateData: Prisma.MemberUpdateInput) {
   try {
     const updated = await prisma.member.update({
       where: { id: memberId },
@@ -62,7 +63,7 @@ export async function updateMember(memberId: string, updateData: any) {
     })
     return { data: updated }
   } catch (error) {
-    console.error('Error updating member:', error)
+    console.error('Error updating member:', { memberId, updateData, error })
     return { error: 'Failed to update member', status: 500 }
   }
 }
@@ -82,4 +83,3 @@ export async function deleteMember(memberId: string) {
     return { error: 'Failed to delete member', status: 500 }
   }
 }
-

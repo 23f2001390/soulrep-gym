@@ -111,7 +111,7 @@ export default function WorkoutsPage() {
 
   useEffect(() => {
     fetchWorkouts();
-  }, [authLoading, user, selectedMemberId]);
+  }, [authLoading, user?.id, selectedMemberId]);
 
   const handleAddPlan = async () => {
     if (!selectedMemberId) return;
@@ -457,7 +457,7 @@ export default function WorkoutsPage() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-1">
-                            {session.exercises.map((ex: any, i: number) => (
+                            {(session.exercises || []).map((ex: any, i: number) => (
                               <Badge key={i} variant="outline" className="text-xs">{ex}</Badge>
                             ))}
                           </div>

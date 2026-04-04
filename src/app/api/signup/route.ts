@@ -44,15 +44,15 @@ export async function POST(request: Request) {
               // Set plan expiry to 1 month from now
               planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               planStatus: 'ACTIVE',
-              // In a real app these would be set via business logic or input
+              // Default to MONTHLY (Basic) plan: 0 sessions per month.
               attendanceCount: 0,
-              sessionsRemaining: 30,
+              sessionsRemaining: 0,
               age: 18,
               gender: 'OTHER',
               Invoice: {
                 create: {
                   plan: 'MONTHLY',
-                  amount: 1800,
+                  amount: 1499,
                   date: new Date(),
                   status: 'PAID'
                 }

@@ -7,6 +7,14 @@ interface PlanProgressCardProps {
 }
 
 export function PlanProgressCard({ member, planProgress }: PlanProgressCardProps) {
+  const baseSessions = member.plan === 'MONTHLY' ? 0 : member.plan === 'QUARTERLY' ? 1 : 4;
+  
+  // Custom sessions (add-ons or gifts) mean remaining could exceed standard plan limit. 
+  // We use max to prevent negative usage or '0/0' logic bugs.
+  const totalSessions = Math.max(baseSessions, member.sessionsRemaining);
+  const sessionsUsed = Math.max(0, totalSessions - member.sessionsRemaining);
+  const sessionProgress = totalSessions > 0 ? (sessionsUsed / totalSessions) * 100 : 0;
+
   return (
     <Card>
       <CardHeader>
@@ -16,9 +24,9 @@ export function PlanProgressCard({ member, planProgress }: PlanProgressCardProps
         <div>
           <div className="flex justify-between text-sm mb-2">
             <span className="text-muted-foreground">Sessions Used</span>
-            <span className="font-medium">{30 - member.sessionsRemaining}/30</span>
+            <span className="font-medium">{sessionsUsed}/{totalSessions}</span>
           </div>
-          <Progress value={((30 - member.sessionsRemaining) / 30) * 100} />
+          <Progress value={sessionProgress} />
         </div>
         <div>
           <div className="flex justify-between text-sm mb-2">

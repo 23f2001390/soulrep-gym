@@ -31,8 +31,15 @@ export default function BookingPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [booked, setBooked] = useState(false);
   const [busySlots, setBusySlots] = useState<any[]>([]);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const selectedDate = date ? format(date, "yyyy-MM-dd") : "";
+
+  // Check if the member already has an active booking for the selected date
+  const existingBookingForDate = bookingsData.find((b: any) => {
+    const bookingDateStr = typeof b.date === 'string' ? b.date.slice(0, 10) : new Date(b.date).toISOString().slice(0, 10);
+    return bookingDateStr === selectedDate && b.status?.toLowerCase() !== 'cancelled';
+  });
 
   // Fetch trainers and bookings
   useEffect(() => {
@@ -118,7 +125,7 @@ export default function BookingPage() {
       const defaultSlots = [{ start: '09:00', end: '18:00', type: 'available' }];
       const daySlots = schedule && schedule[dayName] && schedule[dayName].length > 0 
         ? schedule[dayName] 
-        : (dayName !== 'Sunday' ? defaultSlots : []);
+        : defaultSlots;
       
       const allPossibleTimeSlots: string[] = [];
       
@@ -218,6 +225,25 @@ export default function BookingPage() {
       console.error(err);
       setError(err.message || 'Booking failed');
       setShowConfirm(false);
+    }
+  };
+
+  const handleCancel = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    try {
+      const res = await fetch(`/api/member/bookings/${bookingId}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Failed to cancel booking');
+        return;
+      }
+      // Update local state so UI reflects immediately
+      setBookingsData(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'CANCELLED' } : b));
+      setBusySlots(prev => prev.filter(b => b.id !== bookingId));
+    } catch (err: any) {
+      setError('Failed to cancel booking');
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -335,10 +361,16 @@ export default function BookingPage() {
               )}
 
               {/* Book Button */}
+              {existingBookingForDate && !booked && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400 text-sm">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>You already have a session booked on this date ({existingBookingForDate.time} with {existingBookingForDate.trainerName}). Cancel it first to rebook.</span>
+                </div>
+              )}
               <Button
                 size="lg"
                 className={cn("w-full", "uppercase font-black")}
-                disabled={!selectedTrainer || !selectedTime || !selectedDate}
+                disabled={!selectedTrainer || !selectedTime || !selectedDate || !!existingBookingForDate}
                 onClick={() => setShowConfirm(true)}
               >
                 <CalendarCheck size={18} className="mr-2" />
@@ -372,6 +404,17 @@ export default function BookingPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{dateStr} at {b.time}</p>
+                      {b.status.toLowerCase() !== 'cancelled' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 px-2 w-full"
+                          disabled={cancellingId === b.id}
+                          onClick={() => handleCancel(b.id)}
+                        >
+                          {cancellingId === b.id ? 'Cancelling...' : 'Cancel Booking'}
+                        </Button>
+                      )}
                     </div>
                   );
                 }) : (
@@ -384,7 +427,17 @@ export default function BookingPage() {
         )}
 
         {/* Confirmation Dialog */}
-        <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <Dialog 
+          open={showConfirm} 
+          onOpenChange={(open) => {
+            setShowConfirm(open);
+            if (!open) {
+              setBooked(false);
+              // Small delay to prevent UI flickering if we want to clear inputs
+              // but only if it's after a successful booking
+            }
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{booked ? "Booking Confirmed!" : "Confirm Your Booking"}</DialogTitle>

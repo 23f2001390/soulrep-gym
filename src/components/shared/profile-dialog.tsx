@@ -63,7 +63,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     };
 
     fetchProfile();
-  }, [open, user]);
+  }, [open, user?.id]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

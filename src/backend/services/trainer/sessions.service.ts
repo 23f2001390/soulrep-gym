@@ -32,12 +32,14 @@ export async function getTrainerSessions(trainerId: string, date: string) {
           time: true,
           date: true,
           member: {
-            include: {
+            select: {
               user: { select: { name: true } },
-              // We only want the workout plan that matches today's day of the week.
               WorkoutPlan: {
                 where: { day: dayName },
-                include: { exercises: true }
+                select: {
+                  day: true,
+                  exercises: { select: { name: true, sets: true, reps: true } }
+                }
               }
             }
           }
@@ -67,6 +69,7 @@ export async function getTrainerSessions(trainerId: string, date: string) {
       const workoutPlan = b.member.WorkoutPlan[0] || null
       return {
         id: b.id,
+        memberId: b.memberId,
         memberName: b.member?.user?.name || 'Unknown Member',
         duration: 60, // Fixed 1-hour sessions for now.
         completed: completedSessions.has(`${b.memberId}:${b.date.toISOString()}:${b.time}`),
@@ -86,9 +89,9 @@ export async function getTrainerSessions(trainerId: string, date: string) {
     })
     
     return { data: result }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in getTrainerSessions:', error)
-    return { error: 'Failed to fetch trainer sessions', status: 500 }
+    return { error: `Failed to fetch: ${error.message || 'Unknown error'}`, status: 500 }
   }
 }
 
@@ -142,11 +145,18 @@ export async function completeBooking(trainerId: string, bookingId: string, note
         }
       })
 
-      // We explicitly mark the booking as CONFIRMED (in case it was somehow PENDING)
-      // to signal that the slot is officially closed and processed.
+      // Finalize the update by marking the booking as confirmed AND decrementing 
+      // the member's session count. This keeps the member's plan in sync.
       const updated = await tx.booking.update({
         where: { id: bookingId },
-        data: { status: 'CONFIRMED' },
+        data: { 
+          status: 'CONFIRMED',
+          member: {
+            update: {
+              sessionsRemaining: { decrement: 1 }
+            }
+          }
+        },
       })
 
       return { data: updated }

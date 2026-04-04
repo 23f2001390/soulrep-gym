@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { authenticate } from '@/backend/middleware/auth-middleware'
 import { getMembers, updateMember, deleteMember } from '@/backend/services/owner.service'
 import { prisma } from '@/backend/shared/prisma'
@@ -7,7 +8,7 @@ import { prisma } from '@/backend/shared/prisma'
  * GET /api/owner/members
  * Returns a list of all members with detailed status and assigned trainer info.
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   const auth = await authenticate(['OWNER'])
   if (auth.error) return auth.error
 
@@ -26,13 +27,14 @@ export async function PATCH(req: NextRequest) {
   const auth = await authenticate(['OWNER'])
   if (auth.error) return auth.error
 
-  const { memberId, plan, trainerId, planStatus, sessionsRemaining, planExpiry } = await req.json()
+  const body = (await req.json()) as Record<string, unknown>
+  const { memberId, plan, trainerId, planStatus, sessionsRemaining, planExpiry } = body ?? {}
 
   if (!memberId) {
     return NextResponse.json({ error: 'Member ID is required' }, { status: 400 })
   }
 
-  const updateData: any = {}
+  const updateData: Prisma.MemberUpdateInput = {}
   
   // If plan is being updated, also update status, expiry and sessions
   if (plan) {
@@ -54,8 +56,26 @@ export async function PATCH(req: NextRequest) {
   // Allow individual overrides if provided
   if (trainerId !== undefined) updateData.trainerId = trainerId || null
   if (planStatus) updateData.planStatus = planStatus
-  if (sessionsRemaining !== undefined) updateData.sessionsRemaining = sessionsRemaining
-  if (planExpiry) updateData.planExpiry = new Date(planExpiry)
+
+  if (sessionsRemaining !== undefined) {
+    const parsedSessions = Number(sessionsRemaining)
+    if (!Number.isFinite(parsedSessions) || parsedSessions < 0) {
+      return NextResponse.json({ error: 'Sessions remaining must be a non-negative number' }, { status: 400 })
+    }
+    updateData.sessionsRemaining = Math.trunc(parsedSessions)
+  }
+
+  if (planExpiry) {
+    const parsedExpiry = new Date(planExpiry)
+    if (Number.isNaN(parsedExpiry.getTime())) {
+      return NextResponse.json({ error: 'Plan expiry is invalid' }, { status: 400 })
+    }
+    updateData.planExpiry = parsedExpiry
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: 'No valid member updates were provided' }, { status: 400 })
+  }
 
   const result = await updateMember(memberId, updateData)
   if (result.error) {

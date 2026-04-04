@@ -48,8 +48,19 @@ export async function getBookings(memberId: string, upcoming: boolean = false, s
 export async function createBooking(memberId: string, trainerId: string, date: string, time: string) {
   if (!trainerId || !date || !time) return { error: 'Missing required fields', status: 400 }
 
-  const member = await prisma.member.findUnique({ where: { id: memberId } })
+  // Fetch member with user name beforehand to keep the transaction lean
+  const member = await prisma.member.findUnique({ 
+    where: { id: memberId },
+    include: { user: { select: { name: true } } } 
+  })
   if (!member) return { error: 'Member not found', status: 404 }
+
+  // Fetch trainer with user name too
+  const trainer = await prisma.trainer.findUnique({
+    where: { id: trainerId },
+    include: { user: { select: { name: true } } }
+  })
+  if (!trainer) return { error: 'Trainer not found', status: 404 }
 
   // Check if the user has PT sessions left in their current plan.
   if (member.sessionsRemaining <= 0) return { error: 'No trainer sessions remaining on your plan', status: 403 }
@@ -75,25 +86,25 @@ export async function createBooking(memberId: string, trainerId: string, date: s
       // 1. Create the confirmed booking record.
       const booking = await tx.booking.create({
         data: { memberId, trainerId, date: bookingDate, time, status: 'CONFIRMED' },
-        select: { id: true, trainerId: true, date: true, time: true, status: true, 
-        trainer: { include: { user: { select: { name: true } } } }, 
-        member: { include: { user: { select: { name: true } } } } },
+        select: { id: true, trainerId: true, date: true, time: true, status: true }
       })
 
       // 2. Alert the trainer so they can prepare for the session.
       await tx.notification.create({
         data: { userId: trainerId, title: "New Session Booking",
-        message: `${booking.member.user?.name || 'A member'} has booked a session on ${date} at ${time}.` }
+        message: `${member.user?.name || 'A member'} has booked a session on ${date} at ${time}.` }
       })
 
       // 3. Deduct one PT session from the user's balance.
       await tx.member.update({ where: { id: memberId }, data: { sessionsRemaining: { decrement: 1 } } })
       
       return booking
+    }, {
+      timeout: 10000 // Increased timeout as extra safety
     })
 
     return { 
-      data: { id: result.id, trainerId: result.trainerId, trainerName: result.trainer.user?.name, 
+      data: { id: result.id, trainerId: result.trainerId, trainerName: trainer.user?.name, 
       date: result.date, time: result.time, status: result.status }, 
       status: 201 
     }
@@ -103,3 +114,21 @@ export async function createBooking(memberId: string, trainerId: string, date: s
   }
 }
 
+/**
+ * Cancels an existing booking and refunds the PT session credit to the member.
+ * Only the booking owner can cancel their own booking.
+ */
+export async function cancelBooking(memberId: string, bookingId: string) {
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { id: true, memberId: true, status: true } })
+  if (!booking) return { error: 'Booking not found', status: 404 }
+  if (booking.memberId !== memberId) return { error: 'Unauthorized', status: 403 }
+  if (booking.status === 'CANCELLED') return { error: 'Booking already cancelled', status: 400 }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.update({ where: { id: bookingId }, data: { status: 'CANCELLED' } })
+    // Refund the session credit back to the member
+    await tx.member.update({ where: { id: memberId }, data: { sessionsRemaining: { increment: 1 } } })
+  }, { timeout: 10000 })
+
+  return { success: true }
+}

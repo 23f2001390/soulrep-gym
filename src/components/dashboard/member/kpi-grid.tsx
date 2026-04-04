@@ -8,6 +8,9 @@ interface KPIGridProps {
 }
 
 export function KPIGrid({ member, daysUntilExpiry, formattedExpiry }: KPIGridProps) {
+  const baseSessions = member.plan === 'MONTHLY' ? 0 : member.plan === 'QUARTERLY' ? 1 : 4;
+  const showDenominator = baseSessions >= member.sessionsRemaining && baseSessions > 0;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard
@@ -26,6 +29,7 @@ export function KPIGrid({ member, daysUntilExpiry, formattedExpiry }: KPIGridPro
         title="Sessions Remaining"
         value={member.sessionsRemaining}
         icon={<Dumbbell size={20} />}
+        subtitle={`out of ${baseSessions} this month`}
       />
       <KPICard
         title="Attendance"

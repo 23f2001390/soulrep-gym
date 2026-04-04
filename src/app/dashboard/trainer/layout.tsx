@@ -15,7 +15,7 @@ export default function TrainerLayout({ children }: { children: React.ReactNode 
         router.push("/login");
       }
     }
-  }, [loading, user, router]);
+  }, [loading, `${user?.id}-${user?.role}`, router]);
 
   if (loading || !user) {
     return null;
