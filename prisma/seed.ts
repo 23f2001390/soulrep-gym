@@ -34,12 +34,12 @@ async function main() {
     }
   })
 
-  // Create Trainers (Trainer 1, Trainer 2, etc.)
+  // Create Trainers with real names
   const trainerData = [
-    { id: 't1', name: 'Trainer 1', email: 'trainer1@soulrep.com', phone: '+91 00000 00001', specialization: 'Strength & Conditioning' },
-    { id: 't2', name: 'Trainer 2', email: 'trainer2@soulrep.com', phone: '+91 00000 00002', specialization: 'Yoga & Flexibility' },
-    { id: 't3', name: 'Trainer 3', email: 'trainer3@soulrep.com', phone: '+91 00000 00003', specialization: 'HIIT & Cardio' },
-    { id: 't4', name: 'Trainer 4', email: 'trainer4@soulrep.com', phone: '+91 00000 00004', specialization: 'CrossFit' },
+    { id: 't1', name: 'Rajesh Kumar', email: 'rajesh@soulrep.com', phone: '+91 98765 43210', specialization: 'Strength & Conditioning' },
+    { id: 't2', name: 'Priya Sharma', email: 'priya@soulrep.com', phone: '+91 98765 43211', specialization: 'Yoga & Flexibility' },
+    { id: 't3', name: 'Vikram Singh', email: 'vikram@soulrep.com', phone: '+91 98765 43212', specialization: 'HIIT & Cardio' },
+    { id: 't4', name: 'Anjali Patel', email: 'anjali@soulrep.com', phone: '+91 98765 43213', specialization: 'CrossFit' },
   ]
 
   const trainerPassword = await bcrypt.hash('trainer123', 10)

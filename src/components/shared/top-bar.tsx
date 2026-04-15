@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Search, Check, LogOut, User, Settings, Menu } from "lucide-react";
+import { Bell, Search, Check, LogOut, User, Settings, Menu, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ interface Notification {
 export function TopBar({ title }: { title: string }) {
   const router = useRouter();
   const { logout } = useAuth();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isCollapsed } = useSidebar();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -81,12 +81,11 @@ export function TopBar({ title }: { title: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="lg:flex hidden mr-2"
+          className="mr-2"
           onClick={toggleSidebar}
         >
-          <Menu className="h-5 w-5" />
+          {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </Button>
-        <div className="lg:hidden w-10" />
         <h2 className="text-xl font-black uppercase tracking-widest flex-shrink-0" style={{ fontFamily: HEADING_FONT }}>
           {title}
         </h2>
