@@ -7,31 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, Crown, Dumbbell, UserCircle, ArrowLeft } from "lucide-react";
-import type { Role } from "@/lib/types";
+import { Zap, ArrowLeft } from "lucide-react";
 
 // Pull in auth hooks to perform login
 import { useAuth } from "@/lib/auth-context";
 import { signIn as signInProvider } from "next-auth/react";
 
-const roles: { value: Role; label: string; icon: React.ReactNode }[] = [
-  { value: "owner", label: "Gym Owner", icon: <Crown size={20} /> },
-  { value: "trainer", label: "Trainer", icon: <Dumbbell size={20} /> },
-  { value: "member", label: "Member", icon: <UserCircle size={20} /> },
-];
-
 function LoginContent() {
   const headingFont = "'Bebas Neue', sans-serif";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [selectedRole, setSelectedRole] = useState<Role>("member");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
-
-  const activeRole = roles.find(r => r.value === selectedRole)!;
 
   // Listen to URL search params for NextAuth error redirections
   useEffect(() => {
@@ -46,19 +37,16 @@ function LoginContent() {
   }, [searchParams]);
   
 
-  const handleRoleChange = (role: Role) => {
-    setSelectedRole(role);
-    setEmail("");
-    setPassword("");
-    setError(null);
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    login(email, password, selectedRole).catch(err => {
+    setIsLoading(true);
+    try {
+      await login(email, password); // no role hint anymore
+    } catch (err: any) {
       setError(err.message || "Failed to log in.");
-    });
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -78,23 +66,7 @@ function LoginContent() {
 
       <Card className="border-2 border-foreground">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Login as</CardTitle>
-          <div className="grid grid-cols-3 gap-2 mt-2">
-            {roles.map(r => (
-              <button
-                key={r.value}
-                type="button"
-                onClick={() => handleRoleChange(r.value)}
-                className={`flex flex-col items-center gap-1.5 p-3 border-2 transition-all text-sm font-bold uppercase ${selectedRole === r.value
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border hover:border-foreground/50"
-                  }`}
-              >
-                {r.icon}
-                <span className="text-xs">{r.label}</span>
-              </button>
-            ))}
-          </div>
+          <CardTitle className="text-base text-center">Sign In</CardTitle>
         </CardHeader>
         <CardContent>
           {error && (
@@ -133,43 +105,31 @@ function LoginContent() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full uppercase font-black text-base">
-              LOG IN AS {activeRole.label}
+            <Button type="submit" className="w-full uppercase font-black text-base" disabled={isLoading}>
+              {isLoading ? "LOGGING IN..." : "LOG IN"}
             </Button>
           </form>
 
-          {selectedRole === "member" && (
-            <>
-              <div className="flex items-center my-4">
-                <hr className="flex-grow border-muted" />
-                <span className="mx-2 text-muted-foreground text-xs uppercase">or</span>
-                <hr className="flex-grow border-muted" />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full uppercase font-black text-base"
-                onClick={handleGoogleLogin}
-              >
-                CONTINUE WITH GOOGLE
-              </Button>
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                New here?{" "}
-                <Link href="/signup" className="text-foreground font-semibold hover:underline">
-                  Sign up as a member
-                </Link>
-              </p>
-            </>
-          )}
-          {selectedRole === "trainer" && (
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              Trainers are added by the gym owner. Contact the front desk if you need access.
-            </p>
-          )}
-          {selectedRole === "owner" && (
-            <p className="text-center text-xs text-muted-foreground mt-4">
-            </p>
-          )}
+          <div className="flex items-center my-4">
+            <hr className="flex-grow border-muted" />
+            <span className="mx-2 text-muted-foreground text-xs uppercase">or</span>
+            <hr className="flex-grow border-muted" />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full uppercase font-black text-base"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
+            CONTINUE WITH GOOGLE
+          </Button>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            New here?{" "}
+            <Link href="/signup" className="text-foreground font-semibold hover:underline">
+              Sign up as a member
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

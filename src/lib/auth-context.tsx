@@ -21,10 +21,9 @@ interface AuthContextProps {
   loading: boolean;
   /**
    * Perform login using NextAuth. When login succeeds, the router will
-   * navigate to the appropriate dashboard based on the provided roleHint or
-   * the user role returned from the session.
+   * navigate to the appropriate dashboard based on the user role returned from the session.
    */
-  login: (email: string, password: string, roleHint?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   /**
    * Register a new member via the custom signup API. After creating the user
    * it automatically signs the user in via NextAuth.
@@ -69,26 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   // Login using NextAuth credentials provider. Returns void or throws on error.
-  const login = React.useCallback(async (email: string, password: string, roleHint?: string) => {
-    // Determine the role to redirect to. Use the hint if provided; otherwise use
-    // the role from the current session (which will update shortly after signIn).
-    const role = roleHint || (user?.role ?? "");
-    const path = role ? `/dashboard/${role.toLowerCase()}` : "/dashboard/member";
-    
-    // Explicitly pass callbackUrl to ensure NextAuth doesn't inherit ?error= params from the current browser URL.
+  const login = React.useCallback(async (email: string, password: string) => {
+    // Explicitly let NextAuth handle the redirect based on session, or we can fetch the user's role 
+    // after signIn and redirect manually. Here we tell next-auth to not redirect, then we wait for signIn response.
     const result = await signIn("credentials", {
       email,
       password,
       redirect: false,
-      callbackUrl: path,
     });
     
     if (result?.error) {
       throw new Error(result.error === "CredentialsSignin" ? "Invalid email or password." : (result.error || "Login failed"));
     }
+
+    // Now fetch the session so we can redirect globally
+    const res = await fetch('/api/auth/session');
+    const newSession = await res.json();
+    const currentRole = newSession?.user?.role || "MEMBER";
     
+    const path = currentRole ? `/dashboard/${currentRole.toLowerCase()}` : "/dashboard/member";
     router.push(path);
-  }, [user, router]);
+  }, [router]);
 
   // Signup via our custom API, then sign the user in via NextAuth
   const signup = React.useCallback(async (

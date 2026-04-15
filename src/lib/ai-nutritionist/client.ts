@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-export const MODEL_NAME = "gemini-3.1-flash-lite-preview";
+export const MODEL_NAME = "gemini-2.5-flash-lite";
 
 export function getGeminiErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
