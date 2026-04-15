@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Search, Check, LogOut, User, Settings } from "lucide-react";
+import { Bell, Search, Check, LogOut, User, Settings, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileDialog } from "@/components/shared/profile-dialog";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useSidebar } from "@/lib/sidebar-context";
 
 const HEADING_FONT = "'Bebas Neue', sans-serif";
 
@@ -36,6 +37,7 @@ interface Notification {
 export function TopBar({ title }: { title: string }) {
   const router = useRouter();
   const { logout } = useAuth();
+  const { toggleSidebar } = useSidebar();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -76,6 +78,14 @@ export function TopBar({ title }: { title: string }) {
   return (
     <header className="sticky top-0 z-40 border-b-4 border-sidebar-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:flex hidden mr-2"
+          onClick={toggleSidebar}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <div className="lg:hidden w-10" />
         <h2 className="text-xl font-black uppercase tracking-widest flex-shrink-0" style={{ fontFamily: HEADING_FONT }}>
           {title}

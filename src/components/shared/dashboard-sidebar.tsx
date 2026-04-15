@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSidebar } from "@/lib/sidebar-context";
 
 interface NavItem {
   label: string;
@@ -113,11 +114,15 @@ function SidebarContent({ role, pathname, onNavigate }: { role: string; pathname
 export function DashboardSidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { isCollapsed } = useSidebar();
 
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex h-screen sticky top-0">
+      <aside className={cn(
+        "hidden lg:flex h-screen sticky top-0 transition-all duration-300",
+        isCollapsed ? "w-0 overflow-hidden border-none" : "w-64"
+      )}>
         <SidebarContent role={role} pathname={pathname} />
       </aside>
 
