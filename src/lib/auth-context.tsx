@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // After creating the user, sign them in
     await signIn("credentials", { email, password, redirect: false });
-    router.push("/dashboard/member");
+    router.push("/signup/complete");
   }, [router]);
 
   // Sign the user out via NextAuth and navigate to login
