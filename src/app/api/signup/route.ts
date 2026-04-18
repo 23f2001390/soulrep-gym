@@ -38,27 +38,17 @@ export async function POST(request: Request) {
           name: `${firstName} ${lastName}`,
           phone,
           Member: {
-            create: {
-              joinDate: new Date(),
-              plan: 'MONTHLY',
-              // Set plan expiry to 1 month from now
-              planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              planStatus: 'ACTIVE',
-              // Default to MONTHLY (Basic) plan: 0 sessions per month.
-              attendanceCount: 0,
-              sessionsRemaining: 0,
-              age: 18,
-              gender: 'OTHER',
-              Invoice: {
-                create: {
-                  plan: 'MONTHLY',
-                  amount: 1499,
-                  date: new Date(),
-                  status: 'PAID'
-                }
+              create: {
+                joinDate: new Date(),
+                plan: 'MONTHLY',
+                planExpiry: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                planStatus: 'EXPIRED',
+                attendanceCount: 0,
+                sessionsRemaining: 0,
+                age: 18,
+                gender: 'OTHER',
               }
             }
-          }
         },
         include: {
           Member: true
@@ -72,7 +62,7 @@ export async function POST(request: Request) {
           data: {
             userId: owner.id,
             title: "New Member Signup",
-            message: `${newUser.name} has just signed up and joined the gym!`,
+            message: `${newUser.name} has just signed up and needs to complete plan selection and payment.`,
           }
         })
       }
