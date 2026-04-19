@@ -91,7 +91,9 @@ export const authOptions: NextAuthOptions = {
           console.error("Account upsert failed", e);
         }
 
-        // Ensure a Member record exists for this user if they are a MEMBER
+        // Ensure a Member record exists for this user if they are a MEMBER.
+        // For Google signups we keep membership inactive until they complete
+        // plan selection + mock payment on the post-signup screen.
         if (dbUser.role === 'MEMBER') {
           const member = await prisma.member.findUnique({ where: { id: dbUser.id } });
           if (!member) {
@@ -100,8 +102,8 @@ export const authOptions: NextAuthOptions = {
                 id: dbUser.id,
                 joinDate: new Date(),
                 plan: 'MONTHLY',
-                planExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                planStatus: 'ACTIVE',
+                planExpiry: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                planStatus: 'EXPIRED',
                 attendanceCount: 0,
                 sessionsRemaining: 0,
                 age: 18,
