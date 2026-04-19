@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
+import { PlanType, Prisma } from '@prisma/client'
 import { authenticate } from '@/backend/middleware/auth-middleware'
 import { getMembers, updateMember, deleteMember } from '@/backend/services/owner.service'
 import { prisma } from '@/backend/shared/prisma'
+import { getPlanExpiryDate, getPlanInfo } from '@/lib/plans'
 
 /**
  * GET /api/owner/members
@@ -38,19 +39,15 @@ export async function PATCH(req: NextRequest) {
   
   // If plan is being updated, also update status, expiry and sessions
   if (plan) {
-    updateData.plan = plan as any
-    updateData.planStatus = 'ACTIVE'
-    const now = new Date()
-    if (plan === 'MONTHLY') {
-      updateData.planExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-      updateData.sessionsRemaining = 30
-    } else if (plan === 'QUARTERLY') {
-      updateData.planExpiry = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
-      updateData.sessionsRemaining = 90
-    } else if (plan === 'YEARLY') {
-      updateData.planExpiry = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
-      updateData.sessionsRemaining = 365
+    if (!Object.values(PlanType).includes(plan as PlanType)) {
+      return NextResponse.json({ error: 'Invalid membership plan' }, { status: 400 })
     }
+    const parsedPlan = plan as PlanType
+    const selectedPlan = getPlanInfo(parsedPlan)
+    updateData.plan = parsedPlan
+    updateData.planStatus = 'ACTIVE'
+    updateData.planExpiry = getPlanExpiryDate(parsedPlan)
+    updateData.sessionsRemaining = selectedPlan.sessionsPerMonth
   }
 
   // Allow individual overrides if provided

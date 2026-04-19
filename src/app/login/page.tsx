@@ -50,7 +50,7 @@ function LoginContent() {
   };
 
   const handleGoogleLogin = async () => {
-    await signInProvider('google', { callbackUrl: '/dashboard/member' });
+    await signInProvider('google', { callbackUrl: '/signup/complete' });
   };
 
   return (
